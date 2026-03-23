@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Picknickers Hub Leaderboard — see who's topping the charts across all games." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+  <title>Leaderboard — Picknickers Hub</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <nav class="navbar" aria-label="Main navigation">
+    <div class="nav-container">
+      <a href="../index.html" class="nav-logo" aria-label="Picknickers Hub home">
+        <span class="logo-icon">🎮</span>
+        <span class="logo-text">Picknickers<span class="accent">Hub</span></span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <ul class="nav-links" id="navLinks" role="list">
+        <li><a href="../index.html#games"       class="nav-link">Games</a></li>
+        <li><a href="../index.html#how-to-play" class="nav-link">How to Play</a></li>
+        <li><a href="../index.html#players"     class="nav-link">Players</a></li>
+        <li><a href="leaderboard.html"          class="nav-link" aria-current="page">Leaderboard</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <header class="page-hero">
+    <div class="container">
+      <p class="section-tag">Hall of Fame</p>
+      <h1 class="page-hero-title">🏆 Leaderboard</h1>
+      <p class="page-hero-sub">The top players across all Picknickers Hub games.</p>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <div role="table" aria-label="Full leaderboard" class="lb-full" id="leaderboardFull">
+        <!-- Rows injected by main.js -->
+      </div>
+
+      <div class="coming-soon-banner" style="margin-top: var(--space-8);">
+        <span class="coming-soon-icon" aria-hidden="true">📊</span>
+        <div>
+          <strong>Per-game leaderboards coming soon</strong>
+          <span>Filter by game, time period, and more as the library grows.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-bottom">
+        <p>&copy; <span id="footerYear"></span> Picknickers Hub. Open source &amp; free forever.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../js/main.js"></script>
+</body>
+</html>

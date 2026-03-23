@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Picknickers Hub — your online game night headquarters. Join your friends for board games, card games, and more." />
+  <meta name="keywords" content="online games, multiplayer, game night, picknickers, board games" />
+  <meta name="author" content="Picknickers Hub" />
+
+  <!-- Open Graph / Social sharing -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Picknickers Hub" />
+  <meta property="og:description" content="Your online game night headquarters. Play together, no matter where you are." />
+  <meta property="og:url" content="https://picknickershub.github.io" />
+
+  <!-- Favicon (emoji fallback) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+
+  <title>Picknickers Hub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ===== NAVIGATION ===== -->
+  <nav class="navbar" aria-label="Main navigation">
+    <div class="nav-container">
+      <a href="index.html" class="nav-logo" aria-label="Picknickers Hub home">
+        <span class="logo-icon">🎮</span>
+        <span class="logo-text">Picknickers<span class="accent">Hub</span></span>
+      </a>
+
+      <!-- Hamburger for mobile -->
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+
+      <ul class="nav-links" id="navLinks" role="list">
+        <li><a href="#games" class="nav-link">Games</a></li>
+        <li><a href="#how-to-play" class="nav-link">How to Play</a></li>
+        <li><a href="#players" class="nav-link">Players</a></li>
+        <li><a href="pages/leaderboard.html" class="nav-link">Leaderboard</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <header class="hero" id="home">
+    <div class="hero-bg-shapes" aria-hidden="true">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+    <div class="hero-content container">
+      <div class="hero-badge">Game Night, Every Night</div>
+      <h1 class="hero-title">
+        Welcome to<br />
+        <span class="gradient-text">Picknickers Hub</span>
+      </h1>
+      <p class="hero-subtitle">
+        Your online headquarters for multiplayer fun. Gather your crew, pick a game, and play together — no matter where you are.
+      </p>
+      <div class="hero-actions">
+        <a href="#games" class="btn btn-primary">Browse Games</a>
+        <a href="#how-to-play" class="btn btn-secondary">How it Works</a>
+      </div>
+      <div class="hero-stats" aria-label="Site statistics">
+        <div class="stat">
+          <span class="stat-number" id="statGames">0</span>
+          <span class="stat-label">Games Available</span>
+        </div>
+        <div class="stat-divider" aria-hidden="true"></div>
+        <div class="stat">
+          <span class="stat-number" id="statPlayers">0</span>
+          <span class="stat-label">Players Registered</span>
+        </div>
+        <div class="stat-divider" aria-hidden="true"></div>
+        <div class="stat">
+          <span class="stat-number" id="statSessions">0</span>
+          <span class="stat-label">Sessions Played</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== GAMES SECTION ===== -->
+  <section class="section" id="games" aria-labelledby="gamesHeading">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Play Now</span>
+        <h2 id="gamesHeading" class="section-title">Choose Your Game</h2>
+        <p class="section-subtitle">More games are coming soon. Pick one and invite your friends!</p>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="filter-tabs" role="tablist" aria-label="Filter games by category">
+        <button class="filter-tab active" role="tab" aria-selected="true" data-filter="all">All</button>
+        <button class="filter-tab" role="tab" aria-selected="false" data-filter="card">Card</button>
+        <button class="filter-tab" role="tab" aria-selected="false" data-filter="board">Board</button>
+        <button class="filter-tab" role="tab" aria-selected="false" data-filter="word">Word</button>
+        <button class="filter-tab" role="tab" aria-selected="false" data-filter="trivia">Trivia</button>
+      </div>
+
+      <!-- Games grid — populated by JS -->
+      <div class="games-grid" id="gamesGrid" aria-live="polite">
+        <!-- Cards injected by main.js -->
+      </div>
+
+      <!-- Coming soon placeholder -->
+      <div class="coming-soon-banner">
+        <span class="coming-soon-icon" aria-hidden="true">🚀</span>
+        <div>
+          <strong>More games dropping soon!</strong>
+          <span>We're always building. Check back regularly.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOW TO PLAY ===== -->
+  <section class="section section-alt" id="how-to-play" aria-labelledby="howHeading">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Getting Started</span>
+        <h2 id="howHeading" class="section-title">How It Works</h2>
+        <p class="section-subtitle">Up and running in three simple steps.</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number" aria-hidden="true">01</div>
+          <div class="step-icon" aria-hidden="true">🎯</div>
+          <h3 class="step-title">Pick a Game</h3>
+          <p class="step-description">Browse the lobby, find a game that suits your group, and click to open it.</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step-card">
+          <div class="step-number" aria-hidden="true">02</div>
+          <div class="step-icon" aria-hidden="true">🔗</div>
+          <h3 class="step-title">Share the Link</h3>
+          <p class="step-description">Copy the room link and share it with your friends via chat, email, or wherever you hang out.</p>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step-card">
+          <div class="step-number" aria-hidden="true">03</div>
+          <div class="step-icon" aria-hidden="true">🏆</div>
+          <h3 class="step-title">Play & Win</h3>
+          <p class="step-description">Jump in, play together in real time, and settle the score on the leaderboard.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PLAYERS / LEADERBOARD PREVIEW ===== -->
+  <section class="section" id="players" aria-labelledby="playersHeading">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">The Crew</span>
+        <h2 id="playersHeading" class="section-title">Top Players</h2>
+        <p class="section-subtitle">Bragging rights are on the line. Will you make the list?</p>
+      </div>
+
+      <div class="leaderboard-preview" id="leaderboardPreview" aria-label="Top players leaderboard">
+        <!-- Rows injected by main.js -->
+      </div>
+
+      <div class="center-action">
+        <a href="pages/leaderboard.html" class="btn btn-outline">View Full Leaderboard</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== NEWSLETTER / NOTIFY ===== -->
+  <section class="section section-cta" aria-labelledby="ctaHeading">
+    <div class="container">
+      <div class="cta-card">
+        <h2 id="ctaHeading" class="cta-title">Stay in the Loop</h2>
+        <p class="cta-subtitle">Get notified when new games drop and when game nights are scheduled.</p>
+        <form class="notify-form" id="notifyForm" novalidate aria-label="Game night notification sign-up">
+          <label for="notifyEmail" class="sr-only">Your email address</label>
+          <input
+            type="email"
+            id="notifyEmail"
+            name="email"
+            class="notify-input"
+            placeholder="your@email.com"
+            required
+            autocomplete="email"
+          />
+          <button type="submit" class="btn btn-primary">Notify Me</button>
+        </form>
+        <p class="notify-note" id="notifyMsg" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="nav-logo" aria-label="Picknickers Hub home">
+            <span class="logo-icon">🎮</span>
+            <span class="logo-text">Picknickers<span class="accent">Hub</span></span>
+          </a>
+          <p class="footer-tagline">Game night, every night. Free. No sign-up required to play.</p>
+        </div>
+
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <h3 class="footer-heading">Site</h3>
+          <ul role="list">
+            <li><a href="#games">Games</a></li>
+            <li><a href="#how-to-play">How to Play</a></li>
+            <li><a href="pages/leaderboard.html">Leaderboard</a></li>
+          </ul>
+        </nav>
+
+        <nav class="footer-nav" aria-label="Help links">
+          <h3 class="footer-heading">Info</h3>
+          <ul role="list">
+            <li><a href="pages/about.html">About</a></li>
+            <li><a href="pages/privacy.html">Privacy Policy</a></li>
+            <li><a href="https://github.com/picknickershub/picknickershub" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+          </ul>
+        </nav>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; <span id="footerYear"></span> Picknickers Hub. Open source &amp; free forever.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
