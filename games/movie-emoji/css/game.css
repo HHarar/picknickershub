@@ -623,3 +623,36 @@ select.player-input {
   padding-right: 2.5rem;
   cursor: pointer;
 }
+
+/* ── Host setup: server status bar ──────────────────────── */
+.server-status-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .75rem;
+  border-radius: var(--radius-sm);
+  background: var(--clr-surface);
+  border: 1px solid var(--clr-border);
+  font-size: .78rem;
+  color: var(--clr-text-muted);
+  margin-bottom: .75rem;
+}
+.server-dot {
+  width: .55rem; height: .55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--clr-text-dim);
+}
+.server-dot.online  { background: var(--clr-success); box-shadow: 0 0 6px var(--clr-success); }
+.server-dot.offline { background: var(--clr-danger);  box-shadow: 0 0 6px var(--clr-danger); }
+
+.server-warning {
+  padding: .75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 92, 92, .1);
+  border: 1px solid rgba(255, 92, 92, .35);
+  color: var(--clr-text);
+  font-size: .82rem;
+  margin-bottom: .75rem;
+  line-height: 1.5;
+}

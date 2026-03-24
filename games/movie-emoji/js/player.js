@@ -44,7 +44,17 @@ async function fetchGameNames(room) {
   try {
     const res = await fetch(`/api/game/state?room=${encodeURIComponent(room)}`);
     if (!res.ok) {
-      setRoomMsg('Room not found — check the code on the TV.', 'error');
+      // Check if the response is JSON (local server) or HTML (static host / no server)
+      const isJson = res.headers.get('content-type')?.includes('application/json');
+      if (isJson) {
+        setRoomMsg('Room not found — double-check the code shown on the TV.', 'error');
+      } else {
+        setRoomMsg(
+          'Game server not reachable. Make sure you are on the same Wi-Fi as the host ' +
+          'and use the URL shown on the TV screen — not the Netlify site.',
+          'error'
+        );
+      }
       return;
     }
     const game = await res.json();

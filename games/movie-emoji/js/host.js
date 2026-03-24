@@ -42,8 +42,9 @@ let state = {
   playlistTotal: 15,       // total questions in playlist
 
   // ── Cross-device (SSE/API) ──
-  playerUrl:  '',          // network URL for player.html (from /api/config)
-  sseSource:  null,        // EventSource for player events
+  playerUrl:       '',     // network URL for player.html (from /api/config)
+  sseSource:       null,   // EventSource for player events
+  serverAvailable: false,  // true when local server is reachable
 };
 
 /* ─── BROADCAST CHANNEL ───────────────────────────────────── */
@@ -104,12 +105,29 @@ async function fetchConfig() {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error('no server');
     const cfg = await res.json();
-    state.playerUrl = cfg.playerUrl || '';
+    state.playerUrl      = cfg.playerUrl || '';
+    state.serverAvailable = true;
+    setServerStatus(true);
   } catch {
     // Derive player.html URL relative to the current page so it works
     // on any host (localhost, GitHub Pages subdir, Netlify root, etc.)
-    state.playerUrl = new URL('player.html', location.href).href;
+    state.playerUrl      = new URL('player.html', location.href).href;
+    state.serverAvailable = false;
+    setServerStatus(false);
   }
+}
+
+function setServerStatus(online) {
+  const dot     = document.getElementById('serverDot');
+  const text    = document.getElementById('serverStatusText');
+  const warning = document.getElementById('serverWarning');
+  if (!dot || !text) return;
+  dot.classList.toggle('online',  online);
+  dot.classList.toggle('offline', !online);
+  text.textContent = online
+    ? '✓ Local server running — players can join from their phones'
+    : 'Local server not running';
+  warning?.classList.toggle('hidden', online);
 }
 
 /* ─── SSE — listen for player events ─────────────────────── */

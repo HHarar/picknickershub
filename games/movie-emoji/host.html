@@ -19,6 +19,20 @@
       <h1 class="setup-title">Movie Emoji Game</h1>
       <p class="setup-sub">Configure your game night. You can add up to 8 couples.</p>
 
+      <!-- Server status banner -->
+      <div class="server-status-bar" id="serverStatusBar">
+        <span class="server-dot" id="serverDot"></span>
+        <span id="serverStatusText">Checking server…</span>
+      </div>
+      <div class="server-warning hidden" id="serverWarning">
+        <strong>⚠️ Local server not running — players cannot join from their phones.</strong>
+        <div style="margin-top:.4rem;font-size:.8rem;line-height:1.6">
+          To enable cross-device play, open a terminal in the project folder and run:<br>
+          <code style="background:rgba(0,0,0,.3);padding:.15rem .4rem;border-radius:.25rem">node server.js</code><br>
+          Then open the host panel at <code style="background:rgba(0,0,0,.3);padding:.15rem .4rem;border-radius:.25rem">http://localhost:3000/games/movie-emoji/host.html</code>
+        </div>
+      </div>
+
       <form id="setupForm" novalidate>
 
         <!-- Game Mode -->
