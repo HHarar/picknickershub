@@ -143,26 +143,67 @@ function appendAnswerItem(key, icon, label, text) {
 /* ─── MESSAGE HANDLERS ─────────────────────────────────────── */
 const handlers = {
 
-  GAME_INIT({ entities, roomCode }) {
+  GAME_INIT({ entities, roomCode, playerUrl }) {
     tvState.entities = entities;
     tvState.roomCode = roomCode;
 
     $('#tvRoomCode').textContent  = roomCode;
     $('#tvLobbyRoom').classList.remove('hidden');
-    $('#tvLobbyStatus').textContent = 'Game ready! Select a question to begin.';
+    $('#tvLobbyStatus').textContent = 'Scan the QR code or visit the URL on your phone to join!';
 
-    // Build QR code pointing to the player page
-    const playerUrl = `${location.origin}${location.pathname.replace('tv.html','player.html')}?room=${roomCode}`;
-    renderQrCode(playerUrl);
+    // Use network playerUrl from host (works on phones), fall back to same-origin
+    const qrUrl = playerUrl
+      ? `${playerUrl}?room=${roomCode}`
+      : `${location.origin}${location.pathname.replace('tv.html','player.html')}?room=${roomCode}`;
+    renderQrCode(qrUrl);
+
+    // Show URL text below QR for manual entry
+    const urlEl = document.getElementById('tvPlayerUrl');
+    if (urlEl) {
+      urlEl.textContent = qrUrl.replace(/^https?:\/\//, '');
+    }
+
+    // Reset player list
+    const list = $('#tvPlayerList');
+    if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
 
     renderScoreboard(entities);
     setView('lobby');
   },
 
+  PLAYER_JOINED({ name, joined }) {
+    const list = $('#tvPlayerList');
+    if (!list) return;
+    list.classList.remove('hidden');
+    list.innerHTML = Object.keys(joined).map(n =>
+      `<span class="tv-player-chip">${n} ✓</span>`
+    ).join('');
+    // Update status
+    const all = tvState.entities.length;
+    const cnt = Object.keys(joined).length;
+    $('#tvLobbyStatus').textContent = cnt >= all
+      ? '✅ Everyone is in — ready to play!'
+      : `${cnt} / ${all} joined…`;
+  },
+
+  PLAYER_SUBMITTED({ name }) {
+    const strip = $('#tvSubsStrip');
+    if (!strip) return;
+    if (strip.querySelector(`[data-name="${name}"]`)) return;
+    const b = document.createElement('span');
+    b.className   = 'tv-sub-bubble anim-pop-in';
+    b.dataset.name = name;
+    b.title       = name;
+    b.textContent = '✓';
+    strip.appendChild(b);
+  },
+
   QUESTION_START({ difficulty, emojis, index, total }) {
     stopTvTimer();
 
-    // Reset answer reveal
+    // Reset submission strip and answer reveal
+    const strip = $('#tvSubsStrip');
+    if (strip) strip.innerHTML = '';
     const reveal = $('#tvAnswerReveal');
     if (reveal) reveal.innerHTML = '';
 
@@ -230,7 +271,8 @@ const handlers = {
 
   NEXT_QUESTION() {
     stopTvTimer();
-    // Brief "good job" transition back to lobby-like waiting
+    const strip = $('#tvSubsStrip');
+    if (strip) strip.innerHTML = '';
     const reveal = $('#tvAnswerReveal');
     if (reveal) reveal.innerHTML = '';
     $('#tvCatBadge').style.display = '';

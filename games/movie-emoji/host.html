@@ -143,6 +143,7 @@
 
         <div class="setup-actions">
           <a href="../../index.html" class="btn btn-ghost">← Back to Hub</a>
+          <a href="how-to-play.html" target="_blank" class="btn btn-ghost">❓ How to Play</a>
           <button type="submit" class="btn btn-primary btn-lg">Start Game</button>
         </div>
 
@@ -165,6 +166,7 @@
       <div class="host-room-code">Room: <strong id="hostRoomCode">—</strong></div>
       <div class="host-header-spacer"></div>
       <button class="btn btn-secondary btn-sm" id="openTvBtn">📺 Open TV View</button>
+      <a href="how-to-play.html" target="_blank" class="btn btn-ghost btn-sm">❓ How to Play</a>
       <button class="btn btn-ghost btn-sm" id="endGameBtn">End Game</button>
     </header>
 
@@ -276,6 +278,12 @@
                 <div class="host-award-grid" id="hostAwardGrid">
                   <!-- Injected per question by host.js -->
                 </div>
+              </div>
+
+              <!-- Submission tracker — shows who has answered -->
+              <div class="host-subs-area hidden" id="hostSubsArea">
+                <div class="host-subs-label">Answered 0 / 0</div>
+                <div class="host-subs-bubbles" id="hostSubsBubbles"></div>
               </div>
 
               <!-- Timer display (hidden unless timer running) -->

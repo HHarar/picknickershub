@@ -13,6 +13,7 @@
   <header class="player-header">
     <div class="player-header-logo">🎬 Movie Emoji</div>
     <div class="player-header-room">Room: <strong id="playerRoomCode">—</strong></div>
+    <a href="how-to-play.html" target="_blank" class="btn btn-ghost btn-sm" style="margin-left:auto">❓ Rules</a>
   </header>
 
   <main class="player-main" id="playerMain">
@@ -21,18 +22,31 @@
     <div class="player-join" id="playerJoin">
       <div class="player-join-icon">🎬</div>
       <h1 class="player-join-title">Join the Game</h1>
-      <p class="player-join-sub">Enter your name or team and the room code from the TV screen.</p>
+      <p class="player-join-sub">Enter the room code from the TV, then pick your name.</p>
 
       <form class="player-join-form" id="joinForm" novalidate>
-        <div>
-          <label class="player-label" for="joinName">Your name / couple</label>
-          <input class="player-input" type="text" id="joinName" placeholder="e.g. Team Awesome" maxlength="24" autocomplete="nickname" required />
-        </div>
+
         <div>
           <label class="player-label" for="joinRoom">Room code</label>
-          <input class="player-input" type="text" id="joinRoom" placeholder="e.g. AB123" maxlength="5" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em;font-family:monospace;font-size:1.1rem" />
+          <input class="player-input" type="text" id="joinRoom"
+                 placeholder="e.g. AB123" maxlength="5" autocomplete="off"
+                 style="text-transform:uppercase;letter-spacing:.12em;font-family:monospace;font-size:1.15rem;text-align:center" />
         </div>
-        <button type="submit" class="btn btn-primary player-submit-btn">Join Game 🎮</button>
+
+        <!-- Name picker — revealed after room code loads -->
+        <div class="hidden" id="namePickerSection">
+          <label class="player-label" for="joinNameSelect">Pick your name</label>
+          <select class="player-input" id="joinNameSelect">
+            <option value="">— select your name —</option>
+          </select>
+          <p id="namePickerMsg" style="font-size:.75rem;color:var(--clr-text-dim);margin-top:.35rem"></p>
+        </div>
+
+        <p id="roomStatusMsg" style="font-size:.8rem;min-height:1.2em;color:var(--clr-text-dim)"></p>
+
+        <button type="submit" class="btn btn-primary player-submit-btn" id="joinBtn" disabled>
+          Join Game 🎮
+        </button>
       </form>
     </div>
 
@@ -40,14 +54,13 @@
     <div class="player-waiting hidden" id="playerWaiting">
       <div class="player-waiting-icon">⏳</div>
       <h2 style="font-size:1.25rem;font-weight:700;color:var(--clr-text)">Waiting for question…</h2>
-      <p>Watch the TV screen. You'll get to answer when the host shows the next emoji!</p>
+      <p>Watch the TV screen. The emoji will appear here when the host shows it!</p>
       <p style="font-size:.8rem;margin-top:1rem">Playing as: <strong id="playerNameDisplay">—</strong></p>
     </div>
 
     <!-- ─── ANSWER SCREEN ─── -->
     <div class="player-answer-form hidden" id="playerAnswerForm">
 
-      <!-- Current question preview -->
       <div class="player-question-card">
         <div class="player-q-emoji" id="playerQEmoji">🎬</div>
         <div class="player-q-cat">
@@ -56,7 +69,6 @@
         <p class="player-q-inst" id="playerQInst">Guess the movie name!</p>
       </div>
 
-      <!-- Answer fields (shown based on difficulty) -->
       <form id="answerForm" novalidate>
         <div class="player-field">
           <label class="player-label" for="ansMovie">🎬 Movie Title</label>

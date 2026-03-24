@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How to play Movie Emoji Guessing Game — rules for hosts and players." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <title>How to Play — Movie Emoji Game</title>
+  <link rel="stylesheet" href="css/game.css" />
+  <style>
+    /* ── Page-specific layout ── */
+    body { overflow-x: hidden; }
+
+    .htp-hero {
+      padding: 3.5rem 0 2.5rem;
+      text-align: center;
+      background: radial-gradient(ellipse at 50% 0%, rgba(108,99,255,.18), transparent 65%),
+                  var(--clr-bg);
+    }
+    .htp-hero-icon { font-size: clamp(3.5rem,10vw,5rem); margin-bottom: .75rem; }
+    .htp-hero-title {
+      font-size: clamp(1.75rem,5vw,3rem); font-weight: 900; letter-spacing: -.02em;
+      background: var(--grad-primary); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: .5rem;
+    }
+    .htp-hero-sub { color: var(--clr-text-muted); font-size: clamp(.9rem,2vw,1.1rem); max-width: 520px; margin: 0 auto 1.5rem; }
+    .htp-hero-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+
+    /* ── Section wrappers ── */
+    .htp-section { padding: 3rem 0; }
+    .htp-section + .htp-section { border-top: 1px solid var(--clr-border); }
+    .htp-section-alt { background: var(--clr-bg-alt); }
+
+    .container { max-width: 1000px; margin-inline: auto; padding-inline: 1.5rem; }
+
+    .htp-section-label {
+      font-size: .7rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--clr-secondary); margin-bottom: .4rem;
+    }
+    .htp-section-title {
+      font-size: clamp(1.4rem,3vw,2rem); font-weight: 800; margin-bottom: .5rem; letter-spacing: -.01em;
+    }
+    .htp-section-sub { color: var(--clr-text-muted); font-size: .95rem; max-width: 560px; margin-bottom: 2rem; line-height: 1.7; }
+
+    /* ── Category cards ── */
+    .cat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 1.25rem; }
+
+    .cat-card {
+      background: var(--clr-surface); border: 2px solid var(--clr-border);
+      border-radius: 1.25rem; padding: 1.75rem 1.5rem;
+      display: flex; flex-direction: column; gap: .75rem;
+      transition: transform 250ms var(--ease-out), border-color 250ms ease;
+    }
+    .cat-card:hover { transform: translateY(-4px); }
+    .cat-card.easy   { border-color: rgba(0,196,140,.4); }
+    .cat-card.medium { border-color: rgba(255,184,0,.4); }
+    .cat-card.hard   { border-color: rgba(255,92,92,.4); }
+
+    .cat-card-header { display: flex; align-items: center; gap: .75rem; }
+    .cat-card-icon   { font-size: 2rem; }
+    .cat-card-name   { font-size: 1.1rem; font-weight: 800; }
+    .cat-card-pts    { font-size: .75rem; font-weight: 700; margin-top: .1rem; }
+    .cat-card.easy   .cat-card-pts { color: var(--clr-easy); }
+    .cat-card.medium .cat-card-pts { color: var(--clr-medium); }
+    .cat-card.hard   .cat-card-pts { color: var(--clr-hard); }
+
+    .cat-card-desc { color: var(--clr-text-muted); font-size: .875rem; line-height: 1.65; }
+
+    .cat-breakdown { display: flex; flex-direction: column; gap: .4rem; margin-top: .25rem; }
+    .cat-breakdown-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--clr-bg); border-radius: .5rem; padding: .4rem .75rem;
+      font-size: .8rem;
+    }
+    .cat-breakdown-label { color: var(--clr-text-muted); }
+    .cat-breakdown-pts   { font-weight: 800; }
+    .easy   .cat-breakdown-pts { color: var(--clr-easy); }
+    .medium .cat-breakdown-pts { color: var(--clr-medium); }
+    .hard   .cat-breakdown-pts { color: var(--clr-hard); }
+
+    /* ── Two-column host / player guide ── */
+    .guide-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); gap: 2rem;
+    }
+
+    .guide-card {
+      background: var(--clr-surface); border: 1px solid var(--clr-border);
+      border-radius: 1.25rem; padding: 1.75rem; display: flex; flex-direction: column; gap: 1.25rem;
+    }
+    .guide-card-header { display: flex; align-items: center; gap: .75rem; }
+    .guide-card-icon   { font-size: 2rem; }
+    .guide-card-title  { font-size: 1.2rem; font-weight: 800; }
+    .guide-card-sub    { font-size: .8rem; color: var(--clr-text-muted); margin-top: .1rem; }
+
+    /* Numbered steps */
+    .steps { display: flex; flex-direction: column; gap: .75rem; }
+    .step  { display: flex; gap: .9rem; align-items: flex-start; }
+    .step-num {
+      min-width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .72rem; font-weight: 900; flex-shrink: 0; margin-top: .1rem;
+    }
+    .host-guide .step-num   { background: rgba(108,99,255,.2); color: var(--clr-primary-h); }
+    .player-guide .step-num { background: rgba(0,229,255,.15); color: var(--clr-secondary); }
+    .step-text { font-size: .875rem; color: var(--clr-text-muted); line-height: 1.6; }
+    .step-text strong { color: var(--clr-text); }
+
+    /* ── Tips ── */
+    .tips-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 1rem; }
+
+    .tip-card {
+      background: var(--clr-surface); border: 1px solid var(--clr-border);
+      border-radius: 1rem; padding: 1.25rem;
+      display: flex; flex-direction: column; gap: .5rem;
+    }
+    .tip-icon  { font-size: 1.5rem; }
+    .tip-title { font-size: .9rem; font-weight: 700; }
+    .tip-desc  { font-size: .8rem; color: var(--clr-text-muted); line-height: 1.6; }
+
+    /* ── Example round ── */
+    .example-card {
+      background: var(--clr-surface); border: 1px solid var(--clr-border);
+      border-radius: 1.25rem; overflow: hidden;
+    }
+    .example-tv {
+      background: linear-gradient(135deg, #0d0f1a 0%, #12162a 100%);
+      border-bottom: 1px solid var(--clr-border);
+      padding: 2.5rem; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    }
+    .example-tv-label  { font-size: .65rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--clr-text-dim); }
+    .example-tv-emoji  { font-size: clamp(3.5rem,12vw,6rem); line-height: 1.2; }
+    .example-tv-badge  { }
+
+    .example-reveal {
+      padding: 1.5rem; display: flex; flex-direction: column; gap: .75rem;
+    }
+    .example-reveal-label { font-size: .65rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--clr-text-muted); }
+    .example-answer-row {
+      display: flex; align-items: center; gap: .75rem;
+      background: var(--clr-bg); border-radius: .6rem; padding: .6rem .9rem;
+      font-size: .875rem;
+    }
+    .example-answer-icon   { font-size: 1.1rem; flex-shrink: 0; }
+    .example-answer-key    { color: var(--clr-text-muted); min-width: 80px; font-size: .75rem; flex-shrink: 0; }
+    .example-answer-val    { font-weight: 700; }
+    .example-answer-pts    { margin-left: auto; font-size: .7rem; font-weight: 800; padding: .15rem .5rem; border-radius: var(--radius-full); }
+    .pts-easy   { background: rgba(0,196,140,.15); color: var(--clr-easy); }
+    .pts-medium { background: rgba(255,184,0,.12);  color: var(--clr-medium); }
+    .pts-hard   { background: rgba(255,92,92,.12);  color: var(--clr-hard); }
+
+    /* ── Quick reference table ── */
+    .ref-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .ref-table th, .ref-table td {
+      padding: .7rem 1rem; text-align: left;
+      border-bottom: 1px solid var(--clr-border);
+    }
+    .ref-table thead th { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--clr-text-muted); background: var(--clr-surface-2); }
+    .ref-table tbody tr:hover { background: var(--clr-surface); }
+    .ref-table td:last-child { text-align: right; font-weight: 700; }
+
+    /* ── Footer nav ── */
+    .htp-footer {
+      padding: 2rem 0; text-align: center; border-top: 1px solid var(--clr-border);
+      background: var(--clr-bg-alt);
+    }
+    .htp-footer-links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: .75rem; }
+
+    /* ── Print styles ── */
+    @media print {
+      .htp-hero-actions, .htp-footer { display: none; }
+      .cat-card, .guide-card, .tip-card { break-inside: avoid; }
+      body { background: #fff; color: #000; }
+      :root { --clr-bg: #fff; --clr-surface: #f5f5f5; --clr-text: #000; --clr-text-muted: #555; --clr-border: #ddd; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HERO ══════════════════════════════════════════════ -->
+  <section class="htp-hero">
+    <div class="container">
+      <div class="htp-hero-icon">🎬</div>
+      <h1 class="htp-hero-title">Movie Emoji Guessing Game</h1>
+      <p class="htp-hero-sub">
+        Decode movie titles hidden in emoji clues — the more you know, the more you score.
+        Great for game night with 2 teams or up to 16 players.
+      </p>
+      <div class="htp-hero-actions">
+        <a href="host.html" class="btn btn-primary">🎮 Start as Host</a>
+        <a href="player.html" class="btn btn-secondary">📱 Join as Player</a>
+        <button class="btn btn-ghost" onclick="window.print()">🖨️ Print Rules</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ OVERVIEW ══════════════════════════════════════════ -->
+  <section class="htp-section">
+    <div class="container">
+      <p class="htp-section-label">The Basics</p>
+      <h2 class="htp-section-title">What is it?</h2>
+      <p class="htp-section-sub">
+        The host shows a set of emojis on the TV screen. They're clues to a movie title.
+        Players shout out their guesses — or type them from their phones. Harder questions
+        also ask for the lead actor and a famous quote or song. Points are awarded per
+        component, so partial credit always counts.
+      </p>
+
+      <!-- Quick stat pills -->
+      <div style="display:flex;flex-wrap:wrap;gap:.75rem;margin-bottom:2rem">
+        <span style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:var(--radius-full);padding:.35rem .9rem;font-size:.8rem;font-weight:700">👥 2–16 players</span>
+        <span style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:var(--radius-full);padding:.35rem .9rem;font-size:.8rem;font-weight:700">⏱️ 20–45 min</span>
+        <span style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:var(--radius-full);padding:.35rem .9rem;font-size:.8rem;font-weight:700">📺 Needs a TV or projector</span>
+        <span style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:var(--radius-full);padding:.35rem .9rem;font-size:.8rem;font-weight:700">🇮🇳 70% Bollywood · 🌍 30% Hollywood</span>
+        <span style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:var(--radius-full);padding:.35rem .9rem;font-size:.8rem;font-weight:700">🎲 Manual or Random playlist</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CATEGORIES ════════════════════════════════════════ -->
+  <section class="htp-section htp-section-alt">
+    <div class="container">
+      <p class="htp-section-label">Difficulty Levels</p>
+      <h2 class="htp-section-title">Three Categories</h2>
+      <p class="htp-section-sub">
+        The host picks the category before each round. Partial credit applies for Medium and
+        Hard — you can earn points even if you don't get every component right.
+      </p>
+
+      <div class="cat-cards">
+
+        <!-- EASY -->
+        <div class="cat-card easy">
+          <div class="cat-card-header">
+            <span class="cat-card-icon">🟢</span>
+            <div>
+              <div class="cat-card-name">Easy</div>
+              <div class="cat-card-pts">10 points total</div>
+            </div>
+          </div>
+          <p class="cat-card-desc">
+            Identify the movie from the emoji clue. No extra knowledge needed — just the title.
+          </p>
+          <div class="cat-breakdown">
+            <div class="cat-breakdown-row easy">
+              <span class="cat-breakdown-label">🎬 Movie title</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+          </div>
+          <div style="font-size:.75rem;color:var(--clr-text-dim);margin-top:.25rem">
+            Example: <strong>🚂 🌻 💍</strong> → <em>Dilwale Dulhania Le Jayenge</em>
+          </div>
+        </div>
+
+        <!-- MEDIUM -->
+        <div class="cat-card medium">
+          <div class="cat-card-header">
+            <span class="cat-card-icon">🟡</span>
+            <div>
+              <div class="cat-card-name">Medium</div>
+              <div class="cat-card-pts">20 points total</div>
+            </div>
+          </div>
+          <p class="cat-card-desc">
+            Name the movie AND the lead actor or actress. Each component is worth points
+            independently — so a half-answer still scores.
+          </p>
+          <div class="cat-breakdown">
+            <div class="cat-breakdown-row medium">
+              <span class="cat-breakdown-label">🎬 Movie title</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+            <div class="cat-breakdown-row medium">
+              <span class="cat-breakdown-label">🎭 Lead actor / actress</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+          </div>
+          <div style="font-size:.75rem;color:var(--clr-text-dim);margin-top:.25rem">
+            Example: <strong>🛳️ 👨‍👩‍👧‍👦 🌊</strong> → <em>Dil Dhadakne Do</em> / <em>Ranveer Singh & Priyanka Chopra</em>
+          </div>
+        </div>
+
+        <!-- HARD -->
+        <div class="cat-card hard">
+          <div class="cat-card-header">
+            <span class="cat-card-icon">🔴</span>
+            <div>
+              <div class="cat-card-name">Hard</div>
+              <div class="cat-card-pts">30 points total</div>
+            </div>
+          </div>
+          <p class="cat-card-desc">
+            Name the movie, the lead actor, AND recite a famous quote or name a famous song
+            from the film. Each component scored separately.
+          </p>
+          <div class="cat-breakdown">
+            <div class="cat-breakdown-row hard">
+              <span class="cat-breakdown-label">🎬 Movie title</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+            <div class="cat-breakdown-row hard">
+              <span class="cat-breakdown-label">🎭 Lead actor / actress</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+            <div class="cat-breakdown-row hard">
+              <span class="cat-breakdown-label">💬 Famous quote or song</span>
+              <span class="cat-breakdown-pts">10 pts</span>
+            </div>
+          </div>
+          <div style="font-size:.75rem;color:var(--clr-text-dim);margin-top:.25rem">
+            Example: <strong>🧱 🤵 🆚</strong> → <em>Deewar</em> / <em>Amitabh Bachchan</em> / <em>"Mere paas maa hai"</em>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ EXAMPLE ROUND ═════════════════════════════════════ -->
+  <section class="htp-section">
+    <div class="container">
+      <p class="htp-section-label">See it in Action</p>
+      <h2 class="htp-section-title">Example Round</h2>
+      <p class="htp-section-sub">
+        Here's what a Hard question looks like from start to full reveal.
+      </p>
+
+      <div class="example-card">
+        <!-- TV mock -->
+        <div class="example-tv">
+          <div class="example-tv-label">What the TV shows</div>
+          <div class="example-tv-emoji">🔥 🐴 🏜️</div>
+          <span class="cat-badge hard">Hard — 30 pts</span>
+        </div>
+
+        <!-- Reveal sequence -->
+        <div class="example-reveal">
+          <div class="example-reveal-label">Host reveals one component at a time →</div>
+
+          <div class="example-answer-row">
+            <span class="example-answer-icon">1️⃣</span>
+            <span class="example-answer-key">🎬 Movie</span>
+            <span class="example-answer-val">Sholay</span>
+            <span class="example-answer-pts pts-hard">+10 pts</span>
+          </div>
+          <div class="example-answer-row">
+            <span class="example-answer-icon">2️⃣</span>
+            <span class="example-answer-key">🎭 Actor</span>
+            <span class="example-answer-val">Amitabh Bachchan &amp; Dharmendra</span>
+            <span class="example-answer-pts pts-hard">+10 pts</span>
+          </div>
+          <div class="example-answer-row">
+            <span class="example-answer-icon">3️⃣</span>
+            <span class="example-answer-key">💬 Quote</span>
+            <span class="example-answer-val">"Kitne aadmi the?"</span>
+            <span class="example-answer-pts pts-hard">+10 pts</span>
+          </div>
+
+          <div style="font-size:.8rem;color:var(--clr-text-muted);padding:.5rem .9rem;background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.2);border-radius:.6rem;margin-top:.25rem">
+            💡 <strong>Partial credit in action:</strong> If a team gets the movie and the actor but blanks on the quote, they still earn <strong>20 of 30 points</strong>. The host uses the award buttons to give points for each component independently.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ HOST & PLAYER GUIDES ══════════════════════════════ -->
+  <section class="htp-section htp-section-alt">
+    <div class="container">
+      <p class="htp-section-label">Step-by-Step</p>
+      <h2 class="htp-section-title">How to Play</h2>
+      <p class="htp-section-sub">
+        One person is the host — they control everything from their laptop.
+        Everyone else is a player — they watch the TV and shout (or type) their answers.
+      </p>
+
+      <div class="guide-grid">
+
+        <!-- HOST GUIDE -->
+        <div class="guide-card host-guide">
+          <div class="guide-card-header">
+            <span class="guide-card-icon">🎮</span>
+            <div>
+              <div class="guide-card-title">Host Guide</div>
+              <div class="guide-card-sub">Running the game from your laptop</div>
+            </div>
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-text">Open <strong>host.html</strong> on your laptop. This is your private control panel — the TV will never show it.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-text"><strong>Configure the game:</strong> choose Teams or Individual, enter names, pick your movie origin (Bollywood / Hollywood / All), pick genres, and choose Manual or Random question mode.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-text">Click <strong>Start Game</strong>, then click <strong>📺 Open TV View</strong>. A new browser window opens — drag it to your TV or projector and click it to go fullscreen.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-text">Choose a <strong>category tab</strong> (Easy / Medium / Hard), then click any emoji card to preview the question. <em>You see the full answer — players don't.</em></div>
+            </div>
+            <div class="step">
+              <div class="step-num">5</div>
+              <div class="step-text">Click <strong>📺 Show on TV</strong> to push the emoji clue to the big screen. Optionally start the timer for time pressure.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">6</div>
+              <div class="step-text">Listen to players' answers, then click <strong>Reveal Title → Reveal Actor → Reveal Quote</strong> to unveil each component one at a time.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">7</div>
+              <div class="step-text">Use the <strong>award point buttons</strong> to give points to the correct team or player for each component. Points update live on the TV scoreboard.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">8</div>
+              <div class="step-text">Click <strong>Next →</strong> to clear the screen and move to the next question. In Random mode it auto-advances through your playlist.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">9</div>
+              <div class="step-text">When done, click <strong>End Game</strong> to show the final winner on the TV.</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:.75rem;padding:.9rem 1rem;font-size:.8rem;color:var(--clr-text-muted);line-height:1.6">
+            💡 <strong>Pro tip:</strong> Use the <strong>🎲 Random Pick</strong> button to instantly grab an unused question without scanning the grid — great for keeping the game pace up.
+          </div>
+        </div>
+
+        <!-- PLAYER GUIDE -->
+        <div class="guide-card player-guide">
+          <div class="guide-card-header">
+            <span class="guide-card-icon">📱</span>
+            <div>
+              <div class="guide-card-title">Player Guide</div>
+              <div class="guide-card-sub">Playing from the couch (or your phone)</div>
+            </div>
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-text">Gather around the TV. The host will display an emoji combination — that's your clue.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-text">Check the <strong>category badge</strong> on screen. It tells you exactly what you need to answer — title only (Easy), or title + actor (Medium), or all three (Hard).</div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-text"><strong>Shout out your answer</strong> before or after the timer runs out, OR type it on your phone at <strong>player.html?room=XXXXX</strong> (room code shown on screen).</div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-text">The host reveals components one at a time. You can change or add to your answer until the host clicks Reveal.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">5</div>
+              <div class="step-text">Points are awarded per component — <strong>partial credit counts!</strong> Getting the movie right but not the actor still earns you points.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">6</div>
+              <div class="step-text">Watch the scoreboard at the bottom of the TV screen update in real time after each question.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">7</div>
+              <div class="step-text">The player or team with the most points when the last question is played <strong>wins</strong>!</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);border-radius:.75rem;padding:.9rem 1rem;font-size:.8rem;color:var(--clr-text-muted);line-height:1.6">
+            💡 <strong>Phone play:</strong> Open your browser, go to the game URL, and add <code style="background:var(--clr-bg);padding:.1rem .35rem;border-radius:.3rem;font-size:.75rem">/player.html?room=XXXXX</code> with the room code shown on the TV. Submit answers without leaving your seat.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SCORING QUICK REF ══════════════════════════════════ -->
+  <section class="htp-section">
+    <div class="container">
+      <p class="htp-section-label">Scoring Reference</p>
+      <h2 class="htp-section-title">Points at a Glance</h2>
+      <p class="htp-section-sub">
+        Partial credit is always on — you never walk away with zero if you get part of the answer.
+      </p>
+
+      <div style="background:var(--clr-surface);border:1px solid var(--clr-border);border-radius:1rem;overflow:hidden">
+        <table class="ref-table" aria-label="Scoring reference">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>🎬 Movie Title</th>
+              <th>🎭 Lead Actor</th>
+              <th>💬 Quote / Song</th>
+              <th>Max Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cat-badge easy">Easy</span></td>
+              <td>10 pts</td>
+              <td style="color:var(--clr-text-dim)">—</td>
+              <td style="color:var(--clr-text-dim)">—</td>
+              <td>10 pts</td>
+            </tr>
+            <tr>
+              <td><span class="cat-badge medium">Medium</span></td>
+              <td>10 pts</td>
+              <td>10 pts</td>
+              <td style="color:var(--clr-text-dim)">—</td>
+              <td>20 pts</td>
+            </tr>
+            <tr>
+              <td><span class="cat-badge hard">Hard</span></td>
+              <td>10 pts</td>
+              <td>10 pts</td>
+              <td>10 pts</td>
+              <td>30 pts</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ TIPS ══════════════════════════════════════════════ -->
+  <section class="htp-section htp-section-alt">
+    <div class="container">
+      <p class="htp-section-label">Game Night Tips</p>
+      <h2 class="htp-section-title">Make it More Fun</h2>
+
+      <div class="tips-grid">
+        <div class="tip-card">
+          <div class="tip-icon">🎲</div>
+          <div class="tip-title">Use Random Mode</div>
+          <div class="tip-desc">Let the game auto-shuffle a playlist of 15–20 questions across all difficulties. No prep needed — just start and play.</div>
+        </div>
+        <div class="tip-card">
+          <div class="tip-icon">🇮🇳</div>
+          <div class="tip-title">Bollywood Nights</div>
+          <div class="tip-desc">Filter to Bollywood only for a desi-themed game night. Mix genres or focus on Romance or Action for a themed round.</div>
+        </div>
+        <div class="tip-card">
+          <div class="tip-icon">⏱️</div>
+          <div class="tip-title">Add Time Pressure</div>
+          <div class="tip-desc">Enable the 30-second timer for chaotic, fast-paced rounds. Great for Easy questions when everyone knows the films.</div>
+        </div>
+        <div class="tip-card">
+          <div class="tip-icon">🏆</div>
+          <div class="tip-title">Couples vs Couples</div>
+          <div class="tip-desc">8 couples? Split into 2 teams of 4 couples each. One spokesperson from each team submits the answer — keeps it competitive.</div>
+        </div>
+        <div class="tip-card">
+          <div class="tip-icon">🎭</div>
+          <div class="tip-title">Act It Out</div>
+          <div class="tip-desc">House rule: for Hard questions, players can act out the movie scene instead of saying the quote — host decides if it counts.</div>
+        </div>
+        <div class="tip-card">
+          <div class="tip-icon">💬</div>
+          <div class="tip-title">Quote It Loud</div>
+          <div class="tip-desc">For Hard questions, require players to say the quote in character, with the accent. Wrong accent = no points. (Unofficial rule, highly recommended.)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ═════════════════════════════════════════════ -->
+  <footer class="htp-footer">
+    <div style="color:var(--clr-text-muted);font-size:.85rem">Ready to play?</div>
+    <div class="htp-footer-links">
+      <a href="host.html"     class="btn btn-primary btn-sm">🎮 Open Host Panel</a>
+      <a href="player.html"   class="btn btn-secondary btn-sm">📱 Join as Player</a>
+      <a href="../../index.html" class="btn btn-ghost btn-sm">← Back to Hub</a>
+    </div>
+  </footer>
+
+</body>
+</html>

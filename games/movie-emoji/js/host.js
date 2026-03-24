@@ -40,6 +40,10 @@ let state = {
   playlist:    [],         // Question[] — ordered list for random mode
   playlistIdx: -1,         // current playlist position (-1 = not started)
   playlistTotal: 15,       // total questions in playlist
+
+  // ── Cross-device (SSE/API) ──
+  playerUrl:  '',          // network URL for player.html (from /api/config)
+  sseSource:  null,        // EventSource for player events
 };
 
 /* ─── BROADCAST CHANNEL ───────────────────────────────────── */
@@ -75,7 +79,90 @@ function $(sel, root = document) { return root.querySelector(sel); }
 function $$(sel, root = document) { return [...root.querySelectorAll(sel)]; }
 
 function buildGameInitPayload() {
-  return { mode: state.mode, entities: state.entities, roomCode: state.roomCode, usedIds: [...state.usedIds] };
+  return {
+    mode: state.mode, entities: state.entities,
+    roomCode: state.roomCode, usedIds: [...state.usedIds],
+    playerUrl: state.playerUrl,
+  };
+}
+
+/* ─── API HELPERS ─────────────────────────────────────────── */
+async function postApi(endpoint, data) {
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  } catch (e) {
+    console.warn('[Host] API error:', endpoint, e);
+  }
+}
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    state.playerUrl = cfg.playerUrl || '';
+  } catch {
+    state.playerUrl = `${location.origin}/games/movie-emoji/player.html`;
+  }
+}
+
+/* ─── SSE — listen for player events ─────────────────────── */
+function initSSE() {
+  if (state.sseSource) state.sseSource.close();
+  const sse = new EventSource(`/api/events?room=${state.roomCode}`);
+  state.sseSource = sse;
+
+  sse.addEventListener('player_joined', (e) => {
+    const { name, joined } = JSON.parse(e.data);
+    updateJoinStatus(joined);
+    broadcast('PLAYER_JOINED', { name, joined });
+  });
+
+  sse.addEventListener('player_submitted', (e) => {
+    const data = JSON.parse(e.data);
+    markSubmitted(data.name, data.totalSubmitted, data.totalJoined);
+    broadcast('PLAYER_SUBMITTED', data);
+  });
+
+  sse.onerror = () => console.warn('[Host] SSE error — will auto-reconnect');
+}
+
+/* ─── PLAYER JOIN STATUS ──────────────────────────────────── */
+function updateJoinStatus(joined) {
+  state.entities.forEach(entity => {
+    const dot = document.getElementById(`joinDot-${entity.id}`);
+    if (!dot) return;
+    const hasJoined = !!joined[entity.name];
+    dot.classList.toggle('lit', hasJoined);
+    dot.title = hasJoined ? `${entity.name} ✓ joined` : `${entity.name} — not joined`;
+  });
+}
+
+/* ─── SUBMISSION BUBBLES ──────────────────────────────────── */
+function clearSubmissions() {
+  const area    = document.getElementById('hostSubsArea');
+  const bubbles = document.getElementById('hostSubsBubbles');
+  if (area) area.classList.add('hidden');
+  if (bubbles) bubbles.innerHTML = '';
+}
+
+function markSubmitted(name, totalSubmitted, totalJoined) {
+  const area    = document.getElementById('hostSubsArea');
+  const bubbles = document.getElementById('hostSubsBubbles');
+  if (!area || !bubbles) return;
+  area.classList.remove('hidden');
+  const label = area.querySelector('.host-subs-label');
+  if (label) label.textContent = `Answered ${totalSubmitted} / ${totalJoined}`;
+  // Don't add duplicate
+  if (bubbles.querySelector(`[data-name="${CSS.escape(name)}"]`)) return;
+  const b = document.createElement('span');
+  b.className  = 'sub-bubble anim-pop-in';
+  b.dataset.name = name;
+  b.textContent = name;
+  bubbles.appendChild(b);
 }
 
 function buildQuestionPayload() {
@@ -261,6 +348,17 @@ function startGame() {
     state.playlistIdx = -1;
   }
 
+  // Register game on server (enables cross-device player join)
+  const playerNames = state.mode === 'individual'
+    ? state.entities.map(e => e.name)
+    : state.entities.map(e => e.name);   // teams: team names
+  postApi('/api/game/create', {
+    roomCode: state.roomCode,
+    mode: state.mode,
+    playerNames,
+  });
+  initSSE();
+
   renderScores();
   initCategoryTabs();
   initInGameFilters();
@@ -337,11 +435,17 @@ function renderScores() {
   const container = $('#hostScores');
   container.innerHTML = '<div class="scores-heading">Scores</div>';
   state.entities.forEach(entity => {
+    const dot = state.mode === 'individual'
+      ? `<span class="join-dot" id="joinDot-${entity.id}" title="${entity.name} — not joined"></span>`
+      : '';
     const card = document.createElement('div');
     card.className = `score-card ${entity.colorClass}`;
     card.id = `scoreCard-${entity.id}`;
     card.innerHTML = `
-      <div class="score-card-name">${entity.name}</div>
+      <div style="display:flex;align-items:center;gap:.4rem">
+        ${dot}
+        <div class="score-card-name">${entity.name}</div>
+      </div>
       <div class="score-card-pts ${entity.colorClass}" id="scorePts-${entity.id}">${entity.score}</div>
       <div class="score-card-sub">points</div>
     `;
@@ -464,6 +568,7 @@ function pickRandomQuestion() {
    ══════════════════════════════════════════════════════════ */
 function selectQuestion(q) {
   stopTimer();
+  clearSubmissions();
   state.currentQ       = q;
   state.revealedParts  = new Set();
   state.showingSentToTv = false;
@@ -571,10 +676,26 @@ function sendToTV() {
   if (!state.currentQ) return;
   state.showingSentToTv = true;
   broadcast('QUESTION_START', buildQuestionPayload());
+
+  // Push question to player phones via server API
+  const timerEnd = state.timerDefault > 0 ? Date.now() + state.timerDefault * 1000 : null;
+  postApi('/api/game/question', {
+    room: state.roomCode,
+    question: {
+      emojis:     state.currentQ.emojis,
+      difficulty: state.currentQ.difficulty,
+      id:         state.currentQ.id,
+    },
+    timerEnd,
+  });
+
   const btn = $('#sendToTvBtn');
   btn.textContent = '📺 Shown on TV ✓';
   btn.disabled = true;
   lockRevealUntilSent(false);
+
+  // Auto-start timer when question is shown
+  if (state.timerDefault > 0) startTimer();
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -635,6 +756,7 @@ function nextQuestion() {
   $('#hostQEmpty').classList.remove('hidden');
   $('#hostQDisplay').classList.add('hidden');
   broadcast('NEXT_QUESTION', {});
+  postApi('/api/game/next', { room: state.roomCode });
 
   // In random mode, auto-advance to next playlist item
   if (state.qMode === 'random') {
@@ -656,6 +778,7 @@ function endGame() {
   const sorted = [...state.entities].sort((a, b) => b.score - a.score);
   const winner = sorted[0]?.name || '—';
   broadcast('GAME_OVER', { entities: sorted, winner });
+  postApi('/api/game/over', { room: state.roomCode });
   const panel = $('#hostQPanel');
   panel.innerHTML = `
     <div class="host-q-empty" style="flex:1;gap:1rem">
@@ -685,4 +808,7 @@ function initControlButtons() {
 /* ══════════════════════════════════════════════════════════
    BOOT
    ══════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', initSetup);
+document.addEventListener('DOMContentLoaded', () => {
+  fetchConfig();  // pre-load network IP for QR code
+  initSetup();
+});

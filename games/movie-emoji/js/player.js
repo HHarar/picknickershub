@@ -1,80 +1,189 @@
 /**
  * Movie Emoji Game — Player (Phone) Controller
  *
- * Listens on BroadcastChannel for game events from host.js
- * and lets players submit answers.
- *
- * Note: BroadcastChannel works across tabs in the same browser.
- * For true cross-device play (phones), integrate Firebase Realtime
- * Database — see the README for setup instructions.
+ * Transport: HTTP POST to server API + Server-Sent Events (SSE) for push.
+ * Works cross-device on the same local network.
  */
 
-const channel = new BroadcastChannel('movie-emoji-game');
-
+/* ─── STATE ───────────────────────────────────────────────── */
 let playerState = {
-  name:       '',
-  roomCode:   '',
-  currentQ:   null,   // { difficulty, emojis }
-  submitted:  false,
+  name:      '',
+  roomCode:  '',
+  currentQ:  null,
+  submitted: false,
+  sse:       null,
 };
 
 /* ─── HELPERS ──────────────────────────────────────────────── */
 function $(sel) { return document.querySelector(sel); }
 
-function show(id)  { $(id).classList.remove('hidden'); }
-function hide(id)  { $(id).classList.add('hidden'); }
-
 function setView(view) {
-  // view: 'join' | 'waiting' | 'answering' | 'submitted'
-  hide('#playerJoin');
-  hide('#playerWaiting');
-  hide('#playerAnswerForm');
-  hide('#playerSubmitted');
-  if (view === 'join')      show('#playerJoin');
-  if (view === 'waiting')   show('#playerWaiting');
-  if (view === 'answering') show('#playerAnswerForm');
-  if (view === 'submitted') show('#playerSubmitted');
+  $('#playerJoin').classList.toggle('hidden',         view !== 'join');
+  $('#playerWaiting').classList.toggle('hidden',      view !== 'waiting');
+  $('#playerAnswerForm').classList.toggle('hidden',   view !== 'answering');
+  $('#playerSubmitted').classList.toggle('hidden',    view !== 'submitted');
 }
 
-/* Pre-fill room code from URL query string */
-function prefillFromUrl() {
-  const params = new URLSearchParams(location.search);
-  const room = params.get('room') || params.get('session') || '';
-  if (room) {
-    $('#joinRoom').value = room.toUpperCase();
-    $('#playerRoomCode').textContent = room.toUpperCase();
+function setRoomMsg(msg, type = '') {
+  const el = $('#roomStatusMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = type === 'error'   ? 'var(--clr-danger)'
+                 : type === 'success' ? 'var(--clr-success)'
+                 : 'var(--clr-text-dim)';
+}
+
+/* ─── FETCH GAME NAMES ─────────────────────────────────────── */
+async function fetchGameNames(room) {
+  setRoomMsg('Loading…');
+  const picker = $('#namePickerSection');
+  const joinBtn = $('#joinBtn');
+  picker?.classList.add('hidden');
+  joinBtn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/game/state?room=${encodeURIComponent(room)}`);
+    if (!res.ok) {
+      setRoomMsg('Room not found — check the code on the TV.', 'error');
+      return;
+    }
+    const game = await res.json();
+
+    const select = $('#joinNameSelect');
+    select.innerHTML = '<option value="">— select your name —</option>';
+
+    const available = game.playerNames.filter(n => !game.joined[n]);
+    available.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      select.appendChild(opt);
+    });
+
+    if (available.length === 0) {
+      setRoomMsg('All spots are taken!', 'error');
+      const msg = $('#namePickerMsg');
+      if (msg) msg.textContent = 'Ask the host to restart the game.';
+    } else {
+      setRoomMsg('');
+      const msg = $('#namePickerMsg');
+      if (msg) msg.textContent = `${available.length} spot${available.length > 1 ? 's' : ''} available`;
+    }
+
+    picker?.classList.remove('hidden');
+
+    // Enable join button when a name is selected
+    select.addEventListener('change', () => {
+      joinBtn.disabled = !select.value;
+    });
+
+  } catch (e) {
+    setRoomMsg('Could not reach the game server.', 'error');
   }
-  const name = params.get('name') || '';
-  if (name) $('#joinName').value = name;
 }
 
 /* ─── JOIN FORM ────────────────────────────────────────────── */
 function initJoinForm() {
-  const form = $('#joinForm');
-  if (!form) return;
+  const roomInput = $('#joinRoom');
 
-  // Auto-uppercase room code as typed
-  $('#joinRoom').addEventListener('input', (e) => {
-    e.target.value = e.target.value.toUpperCase();
+  roomInput.addEventListener('input', () => {
+    const room = roomInput.value.toUpperCase();
+    roomInput.value = room;
+    $('#playerRoomCode').textContent = room || '—';
+    if (room.length === 5) {
+      fetchGameNames(room);
+    } else {
+      $('#namePickerSection')?.classList.add('hidden');
+      $('#joinBtn').disabled = true;
+    }
   });
 
-  form.addEventListener('submit', (e) => {
+  $('#joinForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = $('#joinName').value.trim();
-    const room = $('#joinRoom').value.trim().toUpperCase();
-    if (!name) { alert('Please enter your name.'); return; }
+    const room = roomInput.value.trim().toUpperCase();
+    const name = $('#joinNameSelect').value;
+    if (!room || !name) return;
 
-    playerState.name     = name;
-    playerState.roomCode = room;
+    const btn = $('#joinBtn');
+    btn.disabled = true;
+    btn.textContent = 'Joining…';
 
-    $('#playerNameDisplay').textContent  = name;
-    $('#playerRoomCode').textContent     = room || '—';
+    try {
+      const res = await fetch('/api/game/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room, name }),
+      });
 
-    // Tell host we joined (they see this in console or optionally display it)
-    channel.postMessage({ type: 'PLAYER_JOINED', payload: { name, roomCode: room }, ts: Date.now() });
+      if (res.status === 409) {
+        setRoomMsg('That name was just taken — pick another.', 'error');
+        fetchGameNames(room);
+        btn.disabled = false;
+        btn.textContent = 'Join Game 🎮';
+        return;
+      }
+      if (!res.ok) {
+        setRoomMsg('Could not join. Try again.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Join Game 🎮';
+        return;
+      }
 
+      playerState.name     = name;
+      playerState.roomCode = room;
+      $('#playerNameDisplay').textContent = name;
+      $('#playerRoomCode').textContent    = room;
+
+      connectSSE(room);
+      setView('waiting');
+
+    } catch {
+      setRoomMsg('Network error. Make sure you are on the same Wi-Fi.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Join Game 🎮';
+    }
+  });
+}
+
+/* ─── SSE CONNECTION ───────────────────────────────────────── */
+function connectSSE(room) {
+  if (playerState.sse) playerState.sse.close();
+  const sse = new EventSource(`/api/events?room=${encodeURIComponent(room)}`);
+  playerState.sse = sse;
+
+  sse.addEventListener('question_start', (e) => {
+    const { question } = JSON.parse(e.data);
+    if (question) showAnswerForm(question);
+  });
+
+  sse.addEventListener('next_question', () => {
+    playerState.submitted = false;
     setView('waiting');
   });
+
+  sse.addEventListener('game_over', (e) => {
+    const { scores } = JSON.parse(e.data);
+    const myScore = scores?.[playerState.name] ?? '—';
+    $('#playerWaiting').innerHTML = `
+      <div style="font-size:3rem">🏆</div>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.5rem">Game Over!</h2>
+      <p>Your score: <strong style="color:var(--clr-secondary)">${myScore} pts</strong></p>
+      <a href="host.html" class="btn btn-primary" style="margin-top:1.25rem">Play Again</a>
+    `;
+    setView('waiting');
+  });
+
+  // If game already has an active question when we connect
+  sse.addEventListener('state', (e) => {
+    const game = JSON.parse(e.data);
+    if (game.status === 'question' && game.currentQuestion && !playerState.submitted) {
+      showAnswerForm(game.currentQuestion);
+    }
+  });
+
+  sse.onerror = () => {
+    console.warn('[Player] SSE lost — will auto-reconnect');
+  };
 }
 
 /* ─── ANSWER FORM ──────────────────────────────────────────── */
@@ -82,22 +191,17 @@ function showAnswerForm(q) {
   playerState.currentQ  = q;
   playerState.submitted = false;
 
-  // Update emoji + category display
   $('#playerQEmoji').textContent = q.emojis || '🎬';
 
   const badge = $('#playerQCatBadge');
   badge.textContent = (q.difficulty || 'easy').charAt(0).toUpperCase() + (q.difficulty || '').slice(1);
-  badge.className = `cat-badge ${q.difficulty || 'easy'}`;
+  badge.className   = `cat-badge ${q.difficulty || 'easy'}`;
 
-  // Show appropriate fields based on difficulty
   const isEasy   = q.difficulty === 'easy';
   const isMedium = q.difficulty === 'medium';
-  const isHard   = q.difficulty === 'hard';
-
   $('#ansActorField').classList.toggle('hidden', isEasy);
   $('#ansQuoteField').classList.toggle('hidden', isEasy || isMedium);
 
-  // Update instruction text
   const instMap = {
     easy:   'Guess the movie name!',
     medium: 'Guess the movie name + lead actor / actress.',
@@ -105,74 +209,61 @@ function showAnswerForm(q) {
   };
   $('#playerQInst').textContent = instMap[q.difficulty] || '';
 
-  // Reset fields
   $('#ansMovie').value = '';
   $('#ansActor').value = '';
   $('#ansQuote').value = '';
   $('#ansSubmitBtn').disabled = false;
+  $('#ansSubmitBtn').textContent = 'Submit Answer ✓';
 
   setView('answering');
 }
 
 function initAnswerForm() {
-  const form = $('#answerForm');
-  if (!form) return;
-
-  form.addEventListener('submit', (e) => {
+  $('#answerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (playerState.submitted) return;
 
     const answer = {
-      name:     playerState.name,
-      roomCode: playerState.roomCode,
-      movie:    $('#ansMovie').value.trim(),
-      actor:    $('#ansActor').value.trim(),
-      quote:    $('#ansQuote').value.trim(),
+      movie: $('#ansMovie').value.trim(),
+      actor: $('#ansActor').value.trim(),
+      quote: $('#ansQuote').value.trim(),
     };
 
-    // Broadcast to host (works same-browser; Firebase would send cross-device)
-    channel.postMessage({
-      type:    'PLAYER_ANSWER',
-      payload: answer,
-      ts:      Date.now(),
-    });
-
-    playerState.submitted = true;
     $('#ansSubmitBtn').disabled = true;
-    setView('submitted');
+    $('#ansSubmitBtn').textContent = 'Submitting…';
+
+    try {
+      await fetch('/api/game/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room:   playerState.roomCode,
+          name:   playerState.name,
+          answer,
+        }),
+      });
+      playerState.submitted = true;
+      setView('submitted');
+    } catch {
+      $('#ansSubmitBtn').disabled = false;
+      $('#ansSubmitBtn').textContent = 'Submit Answer ✓';
+      alert('Could not submit — check your connection.');
+    }
   });
 }
 
-/* ─── CHANNEL MESSAGES FROM HOST ──────────────────────────── */
-channel.onmessage = (e) => {
-  const { type, payload } = e.data;
-
-  if (type === 'QUESTION_START') {
-    showAnswerForm(payload);
-  }
-
-  if (type === 'NEXT_QUESTION' || type === 'REVEAL_TITLE') {
-    // After reveal, go back to waiting for next question
-    if (playerState.submitted || type === 'NEXT_QUESTION') {
-      setView('waiting');
-      playerState.submitted = false;
-    }
-  }
-
-  if (type === 'GAME_OVER') {
-    setView('waiting');
-    $('#playerWaiting').innerHTML = `
-      <div style="font-size:3rem">🏆</div>
-      <h2 style="font-size:1.25rem;font-weight:700">Game Over!</h2>
-      <p><strong>${payload.winner || '—'}</strong> wins!</p>
-      <a href="host.html" class="btn btn-primary" style="margin-top:1rem">Play Again</a>
-    `;
-  }
-};
-
 /* ─── BOOT ─────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  prefillFromUrl();
+  const params = new URLSearchParams(location.search);
+  const room   = (params.get('room') || '').toUpperCase();
+
+  if (room) {
+    $('#joinRoom').value = room;
+    $('#playerRoomCode').textContent = room;
+    fetchGameNames(room);
+  }
+
   initJoinForm();
   initAnswerForm();
+  setView('join');
 });

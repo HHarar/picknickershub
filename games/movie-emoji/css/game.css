@@ -523,3 +523,103 @@ ul, ol { list-style: none; }
 
 /* ── Origin badge on question cards ── */
 .q-btn-origin { font-size: .7rem; line-height: 1; }
+
+/* ════════════════════════════════════════════════════════
+   CROSS-DEVICE FEATURES (join dots, submission bubbles)
+   ════════════════════════════════════════════════════════ */
+
+/* ── Join status dot (score card) ───────────────────── */
+.join-dot {
+  display: inline-block;
+  width: .55rem; height: .55rem;
+  border-radius: 50%;
+  background: var(--clr-surface-2);
+  border: 1.5px solid rgba(255,255,255,.12);
+  flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+}
+.join-dot.lit {
+  background: var(--clr-success);
+  box-shadow: 0 0 6px var(--clr-success);
+}
+
+/* ── Host submission tracker ────────────────────────── */
+.host-subs-area {
+  margin: .75rem 0 0;
+  padding: .6rem .75rem;
+  background: var(--clr-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,.07);
+}
+.host-subs-label {
+  font-size: .63rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--clr-text-dim);
+  margin-bottom: .4rem;
+}
+.host-subs-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.sub-bubble {
+  display: inline-block;
+  padding: .18rem .6rem;
+  background: var(--clr-success);
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: .68rem;
+  font-weight: 600;
+}
+
+/* ── TV: player join chips (lobby) ──────────────────── */
+.tv-player-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+  max-width: 700px;
+}
+.tv-player-chip {
+  padding: .4rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: .95rem;
+  font-weight: 600;
+  background: var(--clr-success);
+  color: #fff;
+  animation: popIn 350ms var(--ease-out) both;
+}
+
+/* ── TV: submission strip (question view) ───────────── */
+.tv-subs-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  justify-content: center;
+  margin: .5rem 0 1rem;
+  min-height: 2.2rem;
+}
+.tv-sub-bubble {
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  background: var(--clr-success);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Player: name picker select ─────────────────────── */
+select.player-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%238890b5' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
