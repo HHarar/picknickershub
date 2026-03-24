@@ -69,7 +69,67 @@
           </div>
         </div>
 
-        <!-- Timer preference -->
+        <!-- ── Movie Origin ── -->
+        <div class="setup-field">
+          <label>Movie Origin</label>
+          <div class="origin-pills" id="originPills">
+            <button type="button" class="origin-pill active" data-origin="all">🎬 All (70/30)</button>
+            <button type="button" class="origin-pill bollywood" data-origin="bollywood">🇮🇳 Bollywood only</button>
+            <button type="button" class="origin-pill hollywood" data-origin="hollywood">🌍 Hollywood only</button>
+          </div>
+        </div>
+
+        <!-- ── Genre Filter ── -->
+        <div class="setup-field">
+          <label>Genre <small style="font-weight:400;text-transform:none;letter-spacing:0">(pick one or more, or leave All)</small></label>
+          <div class="genre-chips" id="genreChips">
+            <label class="genre-chip selected"><input type="checkbox" value="all" checked> 🎬 All</label>
+            <label class="genre-chip"><input type="checkbox" value="romance"> 💕 Romance</label>
+            <label class="genre-chip"><input type="checkbox" value="action"> ⚡ Action</label>
+            <label class="genre-chip"><input type="checkbox" value="comedy"> 😂 Comedy</label>
+            <label class="genre-chip"><input type="checkbox" value="drama"> 🎭 Drama</label>
+            <label class="genre-chip"><input type="checkbox" value="thriller"> 🔍 Thriller</label>
+            <label class="genre-chip"><input type="checkbox" value="sci-fi"> 🚀 Sci-Fi</label>
+            <label class="genre-chip"><input type="checkbox" value="sports"> 🏆 Sports</label>
+            <label class="genre-chip"><input type="checkbox" value="musical"> 🎵 Musical</label>
+            <label class="genre-chip"><input type="checkbox" value="family"> 👨‍👩‍👧 Family</label>
+          </div>
+        </div>
+
+        <!-- ── Question Selection Mode ── -->
+        <div class="setup-field">
+          <label>Question Selection</label>
+          <div class="setup-mode-grid">
+            <label class="setup-mode-option selected" id="qModeManualOption">
+              <input type="radio" name="qmode" value="manual" checked />
+              <span class="setup-mode-icon">👆</span>
+              <span class="setup-mode-label">Manual</span>
+              <span class="setup-mode-desc">Host picks each question</span>
+            </label>
+            <label class="setup-mode-option" id="qModeRandomOption">
+              <input type="radio" name="qmode" value="random" />
+              <span class="setup-mode-icon">🎲</span>
+              <span class="setup-mode-label">Random</span>
+              <span class="setup-mode-desc">Auto-shuffled playlist</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- ── Playlist Length (shown when Random is selected) ── -->
+        <div class="setup-field hidden" id="playlistLengthField">
+          <label>Playlist Length</label>
+          <div class="length-btns" id="lengthBtns">
+            <button type="button" class="length-btn" data-total="10">10 Qs</button>
+            <button type="button" class="length-btn active" data-total="15">15 Qs</button>
+            <button type="button" class="length-btn" data-total="20">20 Qs</button>
+            <button type="button" class="length-btn" data-total="25">25 Qs</button>
+          </div>
+          <p style="font-size:.72rem;color:var(--clr-text-dim);margin-top:.4rem">
+            Mixed difficulty spread: roughly 35% easy · 40% medium · 25% hard
+          </p>
+        </div>
+
+        <!-- ── Timer ── -->
         <div class="setup-field">
           <label>Timer per question</label>
           <select class="setup-input" id="timerDuration">
@@ -130,7 +190,40 @@
 
           <!-- Question picker grid -->
           <section class="host-q-picker" aria-label="Question selection">
-            <div class="host-q-picker-heading">Pick a question</div>
+
+            <!-- In-game filter toolbar -->
+            <div class="host-q-filter-bar" id="hostQFilterBar">
+              <!-- Origin pills -->
+              <div class="origin-pills origin-pills-sm" id="inGameOriginPills">
+                <button type="button" class="origin-pill active" data-origin="all">All</button>
+                <button type="button" class="origin-pill bollywood" data-origin="bollywood">🇮🇳</button>
+                <button type="button" class="origin-pill hollywood" data-origin="hollywood">🌍</button>
+              </div>
+              <!-- Genre dropdown -->
+              <select class="filter-genre-select" id="inGameGenreSelect" aria-label="Filter by genre">
+                <option value="all">All Genres</option>
+                <option value="romance">💕 Romance</option>
+                <option value="action">⚡ Action</option>
+                <option value="comedy">😂 Comedy</option>
+                <option value="drama">🎭 Drama</option>
+                <option value="thriller">🔍 Thriller</option>
+                <option value="sci-fi">🚀 Sci-Fi</option>
+                <option value="sports">🏆 Sports</option>
+                <option value="musical">🎵 Musical</option>
+                <option value="family">👨‍👩‍👧 Family</option>
+              </select>
+              <div style="flex:1"></div>
+              <!-- Random pick button (manual mode) / shown in both modes -->
+              <button type="button" class="btn btn-warning btn-sm" id="randomPickBtn" title="Pick a random unused question from current filter">🎲 Random Pick</button>
+            </div>
+
+            <!-- Playlist info bar (random mode only) -->
+            <div class="host-playlist-bar hidden" id="hostPlaylistBar">
+              <span id="playlistProgress">—</span>
+              <button type="button" class="btn btn-ghost btn-sm" id="reshuffleBtn" title="Reshuffle remaining questions">🔀 Reshuffle</button>
+            </div>
+
+            <div class="host-q-picker-heading" id="hostQPickerHeading">Pick a question</div>
             <div class="host-q-grid" id="hostQGrid" role="list">
               <!-- Injected by host.js -->
             </div>
