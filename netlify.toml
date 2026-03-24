@@ -1,0 +1,31 @@
+# Netlify configuration for Picknickers Hub
+# No build step — pure HTML/CSS/JS static site
+
+[build]
+  publish = "."
+  command = ""
+
+# Security headers for all pages
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options  = "nosniff"
+    X-Frame-Options         = "SAMEORIGIN"
+    Referrer-Policy         = "strict-origin-when-cross-origin"
+
+# Cache busting for JS/CSS assets
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Use custom 404 page
+[[redirects]]
+  from   = "/*"
+  to     = "/404.html"
+  status = 404

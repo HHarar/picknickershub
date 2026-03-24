@@ -102,10 +102,13 @@ async function postApi(endpoint, data) {
 async function fetchConfig() {
   try {
     const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('no server');
     const cfg = await res.json();
     state.playerUrl = cfg.playerUrl || '';
   } catch {
-    state.playerUrl = `${location.origin}/games/movie-emoji/player.html`;
+    // Derive player.html URL relative to the current page so it works
+    // on any host (localhost, GitHub Pages subdir, Netlify root, etc.)
+    state.playerUrl = new URL('player.html', location.href).href;
   }
 }
 
