@@ -109,13 +109,13 @@ function renderQrCode(url) {
   try {
     new QRCode(container, {
       text:   url,
-      width:  80,
-      height: 80,
+      width:  180,
+      height: 180,
       colorDark:  '#e8eaf6',
       colorLight: '#12162a',
       correctLevel: QRCode.CorrectLevel.M,
     });
-  } catch (_) { /* QRCode unavailable offline */ }
+  } catch (e) { console.warn('[TV] QR code failed:', e); }
 }
 
 /* ─── ANSWER REVEAL ITEMS ──────────────────────────────────── */
