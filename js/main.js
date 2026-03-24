@@ -10,6 +10,17 @@
    ============================================================ */
 const GAMES = [
   {
+    id: 'movie-emoji',
+    title: 'Movie Emoji',
+    description: 'Decode movie titles hidden in emoji clues. Host controls the action — guess the film, lead actor, and famous quote!',
+    emoji: '🎬',
+    bgColor: '#1a0d25',
+    category: 'trivia',
+    players: '2–16',
+    comingSoon: false,
+    url: 'games/movie-emoji/host.html',
+  },
+  {
     id: 'wordle-clone',
     title: 'Word Guess',
     description: 'Guess the hidden 5-letter word in 6 tries. Classic Wordle-style.',

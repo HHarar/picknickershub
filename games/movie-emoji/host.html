@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <title>Host Panel — Movie Emoji Game</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="host-body">
+
+  <!-- ════════════════════════════════════════════════════════
+       SETUP SCREEN
+       ════════════════════════════════════════════════════════ -->
+  <div class="host-setup" id="hostSetup">
+    <div class="setup-card">
+      <div class="setup-logo">🎬</div>
+      <h1 class="setup-title">Movie Emoji Game</h1>
+      <p class="setup-sub">Configure your game night. You can add up to 8 couples.</p>
+
+      <form id="setupForm" novalidate>
+
+        <!-- Game Mode -->
+        <div class="setup-field">
+          <label>Game Mode</label>
+          <div class="setup-mode-grid">
+            <label class="setup-mode-option selected" id="modeTeamsOption">
+              <input type="radio" name="mode" value="teams" checked />
+              <span class="setup-mode-icon">🏆</span>
+              <span class="setup-mode-label">Teams</span>
+              <span class="setup-mode-desc">2 teams compete head-to-head</span>
+            </label>
+            <label class="setup-mode-option" id="modeIndividualOption">
+              <input type="radio" name="mode" value="individual" />
+              <span class="setup-mode-icon">👤</span>
+              <span class="setup-mode-label">Individual</span>
+              <span class="setup-mode-desc">Each player/couple scores solo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Teams config (shown in teams mode) -->
+        <div id="teamsConfig">
+          <div class="setup-field">
+            <label>Team Names</label>
+            <div class="setup-teams-grid">
+              <input class="setup-input" id="team1Name" placeholder="Team A" value="Team A" maxlength="20" />
+              <input class="setup-input" id="team2Name" placeholder="Team B" value="Team B" maxlength="20" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Individual config (shown in individual mode) -->
+        <div id="individualConfig" class="hidden">
+          <div class="setup-field">
+            <label>Players / Couples <small style="font-weight:400;text-transform:none;letter-spacing:0">(enter names, press Enter or click +)</small></label>
+            <div class="setup-players-list" id="playersList">
+              <div class="setup-player-row">
+                <input class="setup-input player-name-input" placeholder="Player or couple name" maxlength="24" />
+                <button type="button" class="btn btn-ghost btn-sm remove-player" title="Remove" aria-label="Remove player">✕</button>
+              </div>
+              <div class="setup-player-row">
+                <input class="setup-input player-name-input" placeholder="Player or couple name" maxlength="24" />
+                <button type="button" class="btn btn-ghost btn-sm remove-player" title="Remove" aria-label="Remove player">✕</button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="addPlayerBtn" style="margin-top:.5rem">+ Add Player</button>
+          </div>
+        </div>
+
+        <!-- Timer preference -->
+        <div class="setup-field">
+          <label>Timer per question</label>
+          <select class="setup-input" id="timerDuration">
+            <option value="0">No timer</option>
+            <option value="30">30 seconds</option>
+            <option value="60" selected>60 seconds</option>
+            <option value="90">90 seconds</option>
+            <option value="120">2 minutes</option>
+          </select>
+        </div>
+
+        <div class="setup-actions">
+          <a href="../../index.html" class="btn btn-ghost">← Back to Hub</a>
+          <button type="submit" class="btn btn-primary btn-lg">Start Game</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       GAME SCREEN
+       ════════════════════════════════════════════════════════ -->
+  <div class="host-game hidden" id="hostGame">
+
+    <!-- Sticky header bar -->
+    <header class="host-header">
+      <div class="host-header-logo">🎬 Movie Emoji</div>
+      <div class="host-tv-status" id="hostTvStatus">
+        <span class="dot"></span>
+        <span id="tvStatusText">TV: Not connected</span>
+      </div>
+      <div class="host-room-code">Room: <strong id="hostRoomCode">—</strong></div>
+      <div class="host-header-spacer"></div>
+      <button class="btn btn-secondary btn-sm" id="openTvBtn">📺 Open TV View</button>
+      <button class="btn btn-ghost btn-sm" id="endGameBtn">End Game</button>
+    </header>
+
+    <div class="host-body-grid">
+
+      <!-- ─── LEFT: Scoreboards ─── -->
+      <aside class="host-scores" id="hostScores">
+        <div class="scores-heading">Scores</div>
+        <!-- Score cards injected by host.js -->
+      </aside>
+
+      <!-- ─── RIGHT: Control panel ─── -->
+      <main class="host-control">
+
+        <!-- Category tabs -->
+        <nav class="host-cat-tabs" role="tablist" aria-label="Select question difficulty">
+          <button class="host-cat-tab active easy" role="tab" aria-selected="true"  data-cat="easy">⭐ Easy (10)</button>
+          <button class="host-cat-tab medium"       role="tab" aria-selected="false" data-cat="medium">⭐⭐ Medium (20)</button>
+          <button class="host-cat-tab hard"          role="tab" aria-selected="false" data-cat="hard">⭐⭐⭐ Hard (30)</button>
+        </nav>
+
+        <div class="host-control-body">
+
+          <!-- Question picker grid -->
+          <section class="host-q-picker" aria-label="Question selection">
+            <div class="host-q-picker-heading">Pick a question</div>
+            <div class="host-q-grid" id="hostQGrid" role="list">
+              <!-- Injected by host.js -->
+            </div>
+          </section>
+
+          <!-- Current question + controls -->
+          <section class="host-q-panel" id="hostQPanel" aria-label="Current question controls">
+            <div class="host-q-empty" id="hostQEmpty">
+              <span style="font-size:2rem">👆</span>
+              Select a question from the left to get started
+            </div>
+
+            <!-- Populated when a question is selected -->
+            <div class="host-q-display hidden" id="hostQDisplay">
+
+              <!-- Emoji preview + meta -->
+              <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap">
+                <span id="hostQCatBadge" class="cat-badge">easy</span>
+                <span id="hostQId" style="font-size:.7rem;color:var(--clr-text-dim)"></span>
+              </div>
+
+              <div class="host-q-emoji" id="hostQEmoji"></div>
+
+              <!-- Answer (host only) -->
+              <div class="host-answer-box">
+                <div class="host-answer-label">🔐 Host view — answer (not shown on TV)</div>
+                <div class="host-answer-title" id="hostAnswerTitle"></div>
+                <div class="host-answer-actor hidden" id="hostAnswerActor"></div>
+                <div class="host-answer-quote hidden" id="hostAnswerQuote"></div>
+              </div>
+
+              <!-- Primary action row -->
+              <div class="host-controls-row">
+                <button class="btn btn-primary btn-sm" id="sendToTvBtn">📺 Show on TV</button>
+                <button class="btn btn-secondary btn-sm hidden" id="timerBtn">⏱️ Start Timer</button>
+                <button class="btn btn-ghost btn-sm" id="nextQBtn">Next →</button>
+              </div>
+
+              <!-- Reveal controls (locked until shown on TV) -->
+              <div class="host-reveal-section" id="hostRevealSection">
+                <div class="host-reveal-label">Reveal answer components</div>
+                <div class="host-reveal-btns" id="hostRevealBtns">
+                  <!-- Injected per question by host.js -->
+                </div>
+              </div>
+
+              <!-- Point award controls -->
+              <div class="host-award-section" id="hostAwardSection">
+                <div class="host-award-label">Award points</div>
+                <div class="host-award-grid" id="hostAwardGrid">
+                  <!-- Injected per question by host.js -->
+                </div>
+              </div>
+
+              <!-- Timer display (hidden unless timer running) -->
+              <div class="host-timer-bar hidden" id="hostTimerBar">
+                <div class="host-timer-display" id="hostTimerDisplay">—</div>
+                <div style="flex:1"></div>
+                <button class="btn btn-ghost btn-sm" id="stopTimerBtn">■ Stop</button>
+              </div>
+
+            </div>
+          </section>
+
+        </div><!-- /.host-control-body -->
+      </main>
+
+    </div><!-- /.host-body-grid -->
+  </div><!-- /#hostGame -->
+
+  <!-- Scripts — data first, then logic -->
+  <script src="data/questions.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>

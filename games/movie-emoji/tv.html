@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>" />
+  <title>TV Display — Movie Emoji Game</title>
+  <link rel="stylesheet" href="css/game.css" />
+  <!-- QR code library (CDN, free, no tracking) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <style>
+    /* Extra TV-only overrides */
+    body { cursor: none; } /* hide cursor on projected screen */
+    .tv-main { padding: 2.5rem 4rem; }
+    @media (max-width: 900px) { .tv-main { padding: 1.5rem; } }
+  </style>
+</head>
+<body class="tv-body">
+
+  <!-- ── HEADER ── -->
+  <header class="tv-header">
+    <div class="tv-header-logo">🎬 <span>Movie Emoji</span></div>
+    <div class="tv-header-spacer"></div>
+    <div class="tv-header-cat cat-badge" id="tvCatBadge" style="display:none"></div>
+    <div class="tv-header-q" id="tvQProgress" style="display:none"></div>
+    <div class="tv-header-timer" id="tvTimerWrap" style="display:none">
+      <!-- Timer ring injected by tv.js -->
+    </div>
+  </header>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="tv-main" id="tvMain">
+
+    <!-- LOBBY state (default) -->
+    <div class="tv-lobby" id="tvLobby">
+      <div class="tv-lobby-icon">🎬</div>
+      <h1 class="tv-lobby-title">Movie Emoji</h1>
+      <p class="tv-lobby-sub">Get ready for game night!</p>
+      <div class="tv-lobby-room hidden" id="tvLobbyRoom">
+        <div>
+          <div class="tv-lobby-room-label">Room Code</div>
+          <div class="tv-lobby-room-code" id="tvRoomCode">—</div>
+        </div>
+        <div id="tvQrCode"></div>
+      </div>
+      <p id="tvLobbyStatus" style="color:var(--clr-text-dim);font-size:1rem;animation:pulse 2s ease infinite">
+        Waiting for host to start the game…
+      </p>
+    </div>
+
+    <!-- QUESTION state (hidden) -->
+    <div class="tv-question hidden" id="tvQuestion">
+      <div class="tv-emoji-wrap">
+        <div class="tv-emoji" id="tvEmoji"></div>
+      </div>
+      <div class="tv-answer-reveal" id="tvAnswerReveal">
+        <!-- Answer items injected by tv.js when host reveals -->
+      </div>
+    </div>
+
+    <!-- GAME OVER state (hidden) -->
+    <div class="tv-gameover hidden" id="tvGameover">
+      <div class="tv-gameover-trophy">🏆</div>
+      <div class="tv-gameover-title">Game Over!</div>
+      <div class="tv-gameover-winner" id="tvWinner">—</div>
+      <div class="tv-gameover-scores" id="tvGameoverScores" style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem;min-width:320px"></div>
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER: SCOREBOARD ── -->
+  <footer class="tv-footer" id="tvFooter">
+    <div class="tv-scoreboard" id="tvScoreboard">
+      <!-- Score items injected by tv.js -->
+    </div>
+  </footer>
+
+  <script src="js/tv.js"></script>
+</body>
+</html>
