@@ -11,7 +11,7 @@ let playerState = {
   roomCode:  '',
   currentQ:  null,
   submitted: false,
-  sse:       null,
+  unsub:     null,  // GameDB unsubscribe fn
 };
 
 /* ─── HELPERS ──────────────────────────────────────────────── */
@@ -41,25 +41,27 @@ async function fetchGameNames(room) {
   picker?.classList.add('hidden');
   joinBtn.disabled = true;
 
+  let game;
   try {
-    const res = await fetch(`/api/game/state?room=${encodeURIComponent(room)}`);
-    if (!res.ok) {
-      // Check if the response is JSON (local server) or HTML (static host / no server)
-      const isJson = res.headers.get('content-type')?.includes('application/json');
-      if (isJson) {
-        setRoomMsg('Room not found — double-check the code shown on the TV.', 'error');
-      } else {
-        setRoomMsg(
-          'Game server not reachable. Make sure you are on the same Wi-Fi as the host ' +
-          'and use the URL shown on the TV screen — not the Netlify site.',
-          'error'
-        );
-      }
-      return;
+    game = await GameDB.getState(room);
+  } catch (e) {
+    if (e.code === 'NO_SERVER') {
+      setRoomMsg(
+        'Game server not reachable. Make sure you are on the same Wi-Fi as the host ' +
+        'and use the URL shown on the TV screen — not the Netlify site.',
+        'error'
+      );
+    } else {
+      setRoomMsg('Could not reach the game server.', 'error');
     }
-    const game = await res.json();
+    return;
+  }
+  if (!game) {
+    setRoomMsg('Room not found — double-check the code shown on the TV.', 'error');
+    return;
+  }
 
-    const select = $('#joinNameSelect');
+  const select = $('#joinNameSelect');
     select.innerHTML = '<option value="">— select your name —</option>';
 
     const available = game.playerNames.filter(n => !game.joined[n]);
@@ -82,14 +84,10 @@ async function fetchGameNames(room) {
 
     picker?.classList.remove('hidden');
 
-    // Enable join button when a name is selected
-    select.addEventListener('change', () => {
-      joinBtn.disabled = !select.value;
-    });
-
-  } catch (e) {
-    setRoomMsg('Could not reach the game server.', 'error');
-  }
+  // Enable join button when a name is selected
+  select.addEventListener('change', () => {
+    joinBtn.disabled = !select.value;
+  });
 }
 
 /* ─── JOIN FORM ────────────────────────────────────────────── */
@@ -119,25 +117,7 @@ function initJoinForm() {
     btn.textContent = 'Joining…';
 
     try {
-      const res = await fetch('/api/game/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room, name }),
-      });
-
-      if (res.status === 409) {
-        setRoomMsg('That name was just taken — pick another.', 'error');
-        fetchGameNames(room);
-        btn.disabled = false;
-        btn.textContent = 'Join Game 🎮';
-        return;
-      }
-      if (!res.ok) {
-        setRoomMsg('Could not join. Try again.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Join Game 🎮';
-        return;
-      }
+      await GameDB.joinGame(room, name);
 
       playerState.name     = name;
       playerState.roomCode = room;
@@ -147,53 +127,46 @@ function initJoinForm() {
       connectSSE(room);
       setView('waiting');
 
-    } catch {
-      setRoomMsg('Network error. Make sure you are on the same Wi-Fi.', 'error');
+    } catch (err) {
+      if (err.status === 409) {
+        setRoomMsg('That name was just taken — pick another.', 'error');
+        fetchGameNames(room);
+      } else {
+        setRoomMsg('Could not join. Check your connection and try again.', 'error');
+      }
       btn.disabled = false;
       btn.textContent = 'Join Game 🎮';
     }
   });
 }
 
-/* ─── SSE CONNECTION ───────────────────────────────────────── */
+/* ─── SUBSCRIBE TO GAME ────────────────────────────────────── */
 function connectSSE(room) {
-  if (playerState.sse) playerState.sse.close();
-  const sse = new EventSource(`/api/events?room=${encodeURIComponent(room)}`);
-  playerState.sse = sse;
-
-  sse.addEventListener('question_start', (e) => {
-    const { question } = JSON.parse(e.data);
-    if (question) showAnswerForm(question);
+  if (playerState.unsub) playerState.unsub();
+  playerState.unsub = GameDB.subscribePlayer(room, {
+    onQuestionStart: (question) => {
+      if (!playerState.submitted) showAnswerForm(question);
+    },
+    onNextQuestion: () => {
+      playerState.submitted = false;
+      setView('waiting');
+    },
+    onGameOver: (scores) => {
+      const myScore = scores?.[playerState.name] ?? '—';
+      $('#playerWaiting').innerHTML = `
+        <div style="font-size:3rem">🏆</div>
+        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.5rem">Game Over!</h2>
+        <p>Your score: <strong style="color:var(--clr-secondary)">${myScore} pts</strong></p>
+        <a href="host.html" class="btn btn-primary" style="margin-top:1.25rem">Play Again</a>
+      `;
+      setView('waiting');
+    },
+    onState: (game) => {
+      if (game.status === 'question' && game.currentQuestion && !playerState.submitted) {
+        showAnswerForm(game.currentQuestion);
+      }
+    },
   });
-
-  sse.addEventListener('next_question', () => {
-    playerState.submitted = false;
-    setView('waiting');
-  });
-
-  sse.addEventListener('game_over', (e) => {
-    const { scores } = JSON.parse(e.data);
-    const myScore = scores?.[playerState.name] ?? '—';
-    $('#playerWaiting').innerHTML = `
-      <div style="font-size:3rem">🏆</div>
-      <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.5rem">Game Over!</h2>
-      <p>Your score: <strong style="color:var(--clr-secondary)">${myScore} pts</strong></p>
-      <a href="host.html" class="btn btn-primary" style="margin-top:1.25rem">Play Again</a>
-    `;
-    setView('waiting');
-  });
-
-  // If game already has an active question when we connect
-  sse.addEventListener('state', (e) => {
-    const game = JSON.parse(e.data);
-    if (game.status === 'question' && game.currentQuestion && !playerState.submitted) {
-      showAnswerForm(game.currentQuestion);
-    }
-  });
-
-  sse.onerror = () => {
-    console.warn('[Player] SSE lost — will auto-reconnect');
-  };
 }
 
 /* ─── ANSWER FORM ──────────────────────────────────────────── */
@@ -243,15 +216,7 @@ function initAnswerForm() {
     $('#ansSubmitBtn').textContent = 'Submitting…';
 
     try {
-      await fetch('/api/game/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          room:   playerState.roomCode,
-          name:   playerState.name,
-          answer,
-        }),
-      });
+      await GameDB.submitAnswer(playerState.roomCode, playerState.name, answer);
       playerState.submitted = true;
       setView('submitted');
     } catch {

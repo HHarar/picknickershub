@@ -41,10 +41,10 @@ let state = {
   playlistIdx: -1,         // current playlist position (-1 = not started)
   playlistTotal: 15,       // total questions in playlist
 
-  // ── Cross-device (SSE/API) ──
-  playerUrl:       '',     // network URL for player.html (from /api/config)
-  sseSource:       null,   // EventSource for player events
-  serverAvailable: false,  // true when local server is reachable
+  // ── Cross-device ──
+  playerUrl:       '',     // URL for player.html shown in QR code
+  sseUnsub:        null,   // unsubscribe fn for GameDB subscription
+  serverAvailable: false,  // true when server/Firebase is reachable
 };
 
 /* ─── BROADCAST CHANNEL ───────────────────────────────────── */
@@ -87,68 +87,60 @@ function buildGameInitPayload() {
   };
 }
 
-/* ─── API HELPERS ─────────────────────────────────────────── */
-async function postApi(endpoint, data) {
-  try {
-    await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-  } catch (e) {
-    console.warn('[Host] API error:', endpoint, e);
-  }
-}
-
+/* ─── SERVER / FIREBASE STATUS ────────────────────────────── */
 async function fetchConfig() {
+  if (window.GameDB?.isFirebase) {
+    state.playerUrl       = new URL('player.html', location.href).href;
+    state.serverAvailable = true;
+    setServerStatus(true, 'firebase');
+    return;
+  }
   try {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error('no server');
     const cfg = await res.json();
-    state.playerUrl      = cfg.playerUrl || '';
+    state.playerUrl       = cfg.playerUrl || '';
     state.serverAvailable = true;
-    setServerStatus(true);
+    setServerStatus(true, 'server');
   } catch {
-    // Derive player.html URL relative to the current page so it works
-    // on any host (localhost, GitHub Pages subdir, Netlify root, etc.)
-    state.playerUrl      = new URL('player.html', location.href).href;
+    state.playerUrl       = new URL('player.html', location.href).href;
     state.serverAvailable = false;
     setServerStatus(false);
   }
 }
 
-function setServerStatus(online) {
+function setServerStatus(online, mode) {
   const dot     = document.getElementById('serverDot');
   const text    = document.getElementById('serverStatusText');
   const warning = document.getElementById('serverWarning');
   if (!dot || !text) return;
   dot.classList.toggle('online',  online);
   dot.classList.toggle('offline', !online);
-  text.textContent = online
-    ? '✓ Local server running — players can join from their phones'
-    : 'Local server not running';
-  warning?.classList.toggle('hidden', online);
+  if (mode === 'firebase' && online) {
+    text.textContent = '✓ Cloud server ready — players can join from anywhere';
+    warning?.classList.add('hidden');
+  } else if (mode === 'server' && online) {
+    text.textContent = '✓ Local server running — players can join on this network';
+    warning?.classList.add('hidden');
+  } else {
+    text.textContent = 'Game server not available';
+    warning?.classList.remove('hidden');
+  }
 }
 
-/* ─── SSE — listen for player events ─────────────────────── */
-function initSSE() {
-  if (state.sseSource) state.sseSource.close();
-  const sse = new EventSource(`/api/events?room=${state.roomCode}`);
-  state.sseSource = sse;
-
-  sse.addEventListener('player_joined', (e) => {
-    const { name, joined } = JSON.parse(e.data);
-    updateJoinStatus(joined);
-    broadcast('PLAYER_JOINED', { name, joined });
+/* ─── SUBSCRIBE TO PLAYER EVENTS ─────────────────────────── */
+function initPlayerSubscription() {
+  if (state.sseUnsub) state.sseUnsub();
+  state.sseUnsub = GameDB.subscribeHost(state.roomCode, {
+    onPlayerJoined: (name, joined) => {
+      updateJoinStatus(joined);
+      broadcast('PLAYER_JOINED', { name, joined });
+    },
+    onPlayerSubmitted: (name, totalSubmitted, totalJoined) => {
+      markSubmitted(name, totalSubmitted, totalJoined);
+      broadcast('PLAYER_SUBMITTED', { name, totalSubmitted, totalJoined });
+    },
   });
-
-  sse.addEventListener('player_submitted', (e) => {
-    const data = JSON.parse(e.data);
-    markSubmitted(data.name, data.totalSubmitted, data.totalJoined);
-    broadcast('PLAYER_SUBMITTED', data);
-  });
-
-  sse.onerror = () => console.warn('[Host] SSE error — will auto-reconnect');
 }
 
 /* ─── PLAYER JOIN STATUS ──────────────────────────────────── */
@@ -369,16 +361,10 @@ function startGame() {
     state.playlistIdx = -1;
   }
 
-  // Register game on server (enables cross-device player join)
-  const playerNames = state.mode === 'individual'
-    ? state.entities.map(e => e.name)
-    : state.entities.map(e => e.name);   // teams: team names
-  postApi('/api/game/create', {
-    roomCode: state.roomCode,
-    mode: state.mode,
-    playerNames,
-  });
-  initSSE();
+  // Register game on server / Firebase (enables cross-device player join)
+  const playerNames = state.entities.map(e => e.name);
+  GameDB.createGame(state.roomCode, state.mode, playerNames);
+  initPlayerSubscription();
 
   renderScores();
   initCategoryTabs();
@@ -698,17 +684,13 @@ function sendToTV() {
   state.showingSentToTv = true;
   broadcast('QUESTION_START', buildQuestionPayload());
 
-  // Push question to player phones via server API
+  // Push question to player phones
   const timerEnd = state.timerDefault > 0 ? Date.now() + state.timerDefault * 1000 : null;
-  postApi('/api/game/question', {
-    room: state.roomCode,
-    question: {
-      emojis:     state.currentQ.emojis,
-      difficulty: state.currentQ.difficulty,
-      id:         state.currentQ.id,
-    },
-    timerEnd,
-  });
+  GameDB.pushQuestion(state.roomCode, {
+    emojis:     state.currentQ.emojis,
+    difficulty: state.currentQ.difficulty,
+    id:         state.currentQ.id,
+  }, timerEnd);
 
   const btn = $('#sendToTvBtn');
   btn.textContent = '📺 Shown on TV ✓';
@@ -777,7 +759,7 @@ function nextQuestion() {
   $('#hostQEmpty').classList.remove('hidden');
   $('#hostQDisplay').classList.add('hidden');
   broadcast('NEXT_QUESTION', {});
-  postApi('/api/game/next', { room: state.roomCode });
+  GameDB.nextQuestion(state.roomCode);
 
   // In random mode, auto-advance to next playlist item
   if (state.qMode === 'random') {
@@ -799,7 +781,9 @@ function endGame() {
   const sorted = [...state.entities].sort((a, b) => b.score - a.score);
   const winner = sorted[0]?.name || '—';
   broadcast('GAME_OVER', { entities: sorted, winner });
-  postApi('/api/game/over', { room: state.roomCode });
+  const scores = {};
+  state.entities.forEach(e => { scores[e.name] = e.score; });
+  GameDB.endGame(state.roomCode, scores);
   const panel = $('#hostQPanel');
   panel.innerHTML = `
     <div class="host-q-empty" style="flex:1;gap:1rem">
