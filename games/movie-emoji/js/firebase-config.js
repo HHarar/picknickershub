@@ -16,11 +16,11 @@
  * Then deploy this file to Netlify (git push) — done!
  */
 window.FIREBASE_CONFIG = {
-  apiKey:            'REPLACE_ME',
-  authDomain:        'REPLACE_ME.firebaseapp.com',
-  databaseURL:       'https://REPLACE_ME-default-rtdb.firebaseio.com',
-  projectId:         'REPLACE_ME',
-  storageBucket:     'REPLACE_ME.appspot.com',
-  messagingSenderId: 'REPLACE_ME',
-  appId:             'REPLACE_ME',
+  apiKey:            'AIzaSyDTHGV8jIioiXJkvei7upMGRfFRe8NQVWs',
+  authDomain:        'picknickershub.firebaseapp.com',
+  databaseURL:       'https://picknickershub-default-rtdb.firebaseio.com',
+  projectId:         'picknickershub',
+  storageBucket:     'picknickershub.firebasestorage.app',
+  messagingSenderId: '43973006150',
+  appId:             '1:43973006150:web:2c6529e5c97dce00fe4b47',
 };
