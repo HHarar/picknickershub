@@ -303,7 +303,20 @@ function addGuessToLog(guess) {
   if (listEl) {
     const item = document.createElement('div');
     item.className = 'guess-item' + (isCorrect ? ' guess-item--correct' : '');
-    item.textContent = `${guess.player}: ${guess.text}${isCorrect ? ' ✓' : ''}`;
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'guess-item-text';
+    textSpan.textContent = `${guess.player}: ${guess.text}${isCorrect ? ' ✓' : ''}`;
+    item.appendChild(textSpan);
+
+    if (!isCorrect) {
+      const btn = document.createElement('button');
+      btn.className = 'guess-correct-btn';
+      btn.textContent = '✓ Correct';
+      btn.addEventListener('click', () => handleCorrectGuess(guess.player));
+      item.appendChild(btn);
+    }
+
     listEl.appendChild(item);
     listEl.scrollTop = listEl.scrollHeight;
   }
@@ -442,6 +455,9 @@ function handleCorrectGuess(guesserName) {
     return undefined; // abort if already set
   }).then(result => {
     if (result.committed) {
+      // Disable all manual-correct buttons so host can't double-score
+      document.querySelectorAll('.guess-correct-btn').forEach(b => { b.disabled = true; });
+
       const newScores = { ...state.scores };
       newScores[state.round.drawingTeam] = (newScores[state.round.drawingTeam] || 0) + 1;
       state.scores = newScores;
