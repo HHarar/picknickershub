@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TV — Draw &amp; Guess</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+  <link rel="stylesheet" href="css/game.css" />
+  <style>body { cursor: none; }</style>
+</head>
+<body class="dg-tv-body">
+
+  <!-- Header (always visible) -->
+  <header class="dg-tv-header">
+    <div>🎨 Draw &amp; Guess</div>
+    <div id="tvProgress" style="display:none"></div>
+    <div id="tvTimerWrap" style="display:none"></div>
+    <div id="tvRoomCode">—</div>
+  </header>
+
+  <!-- ═══ LOBBY ═══ -->
+  <div id="tvLobby">
+    <h1>Draw &amp; Guess 🎨</h1>
+    <p>Scan to join the game!</p>
+    <div id="tvQrCode"></div>
+    <div id="tvPlayerUrl"></div>
+    <div id="tvLobbyChips"></div>
+    <p id="tvLobbyStatus">Waiting for host to start…</p>
+  </div>
+
+  <!-- ═══ QUESTION (canvas + hint) ═══ -->
+  <div id="tvQuestion" class="hidden">
+    <div id="tvDrawingTeamBanner" class="tv-team-banner"></div>
+    <div class="tv-canvas-area">
+      <canvas id="permanentCanvas"></canvas>
+      <canvas id="liveCanvas"></canvas>
+    </div>
+    <div id="tvWordHint"></div>
+  </div>
+
+  <!-- ═══ ROUND OVER OVERLAY ═══ -->
+  <div id="tvRoundOver" class="tv-round-over-overlay hidden">
+    <div id="tvRoundOverContent"></div>
+  </div>
+
+  <!-- ═══ GAME OVER ═══ -->
+  <div id="tvGameover" class="hidden">
+    <div class="tv-gameover-trophy">🏆</div>
+    <div id="tvWinner"></div>
+    <div id="tvFinalScores"></div>
+  </div>
+
+  <!-- Footer scores (visible during question) -->
+  <footer class="dg-tv-footer" id="tvFooter" style="display:none">
+    <div class="tv-score-a" id="tvScoreA">
+      <span id="tvTeamAName">Team A</span>: <strong id="tvScoreAVal">0</strong>
+    </div>
+    <div class="tv-score-b" id="tvScoreB">
+      <span id="tvTeamBName">Team B</span>: <strong id="tvScoreBVal">0</strong>
+    </div>
+  </footer>
+
+  <!-- Scores overlay -->
+  <div id="tvScoresOverlay" class="tv-scores-overlay hidden">
+    <button onclick="this.parentElement.classList.add('hidden')" aria-label="Close">✕</button>
+    <div id="tvScoresContent"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../movie-emoji/js/firebase-config.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/tv.js"></script>
+</body>
+</html>

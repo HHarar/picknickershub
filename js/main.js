@@ -21,6 +21,17 @@ const GAMES = [
     url: 'games/movie-emoji/host.html',
   },
   {
+    id: 'draw-guess',
+    title: 'Draw & Guess',
+    description: 'One player draws, their team guesses! Two teams race through rounds of Pictionary-style drawing fun.',
+    emoji: '🎨',
+    bgColor: '#1e3a5f',
+    category: 'party',
+    players: '4–12',
+    comingSoon: false,
+    url: 'games/draw-guess/host.html',
+  },
+  {
     id: 'most-likely-to',
     title: 'Most Likely To',
     description: 'Everyone votes on who in the group is most likely to do something. Get points for picking the most popular answer!',

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host — Draw &amp; Guess</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="dg-setup-body" id="appBody">
+
+  <!-- ═══ SETUP SCREEN ═══ -->
+  <div id="setupScreen">
+    <div class="setup-card">
+      <div class="setup-logo">🎨</div>
+      <h1>Draw &amp; Guess</h1>
+      <p>Two teams compete to draw and guess. Set up your teams below.</p>
+      <div id="serverStatusBar" class="server-status-bar">Checking connection…</div>
+
+      <form id="setupForm" novalidate>
+        <!-- Team columns -->
+        <div class="setup-teams-grid">
+          <div class="setup-team-col team-a-col">
+            <input id="teamAName" class="team-name-input" value="Team A" maxlength="20" placeholder="Team A name" />
+            <div id="teamAPlayers"></div>
+            <button type="button" class="btn-add-player" data-team="A">+ Add Player</button>
+          </div>
+          <div class="setup-team-col team-b-col">
+            <input id="teamBName" class="team-name-input" value="Team B" maxlength="20" placeholder="Team B name" />
+            <div id="teamBPlayers"></div>
+            <button type="button" class="btn-add-player" data-team="B">+ Add Player</button>
+          </div>
+        </div>
+
+        <div class="setup-section-label">Difficulty</div>
+        <div class="diff-btns">
+          <button type="button" class="diff-btn" data-diff="easy">⭐ Easy</button>
+          <button type="button" class="diff-btn active" data-diff="mixed">🎲 Mixed</button>
+          <button type="button" class="diff-btn" data-diff="medium">⭐⭐ Medium</button>
+          <button type="button" class="diff-btn" data-diff="hard">⭐⭐⭐ Hard</button>
+        </div>
+
+        <div class="setup-section-label">Rounds</div>
+        <div class="round-btns">
+          <button type="button" class="round-btn" data-rounds="5">5</button>
+          <button type="button" class="round-btn active" data-rounds="10">10</button>
+          <button type="button" class="round-btn" data-rounds="12">12</button>
+          <button type="button" class="round-btn" data-rounds="16">16</button>
+        </div>
+
+        <div class="setup-section-label">Timer per Round</div>
+        <select id="timerSelect" class="setup-select">
+          <option value="60">60 seconds</option>
+          <option value="90" selected>90 seconds</option>
+          <option value="120">2 minutes</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary btn-lg">🎮 Create Game</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ GAME SCREEN ═══ -->
+  <div id="gameScreen" class="hidden">
+    <header class="dg-header">
+      <div>🎨 Draw &amp; Guess</div>
+      <div class="tv-status" id="tvStatus">TV: not connected</div>
+      <div>Room: <strong id="roomCodeDisplay">—</strong></div>
+      <button class="btn btn-secondary btn-sm" id="openTvBtn">📺 Open TV</button>
+      <button class="btn btn-ghost btn-sm" id="showScoresBtn">📊 Scores</button>
+      <button class="btn btn-danger btn-sm" id="endGameBtn">End Game</button>
+    </header>
+
+    <div class="host-game-grid">
+      <!-- Left: scores + guess log -->
+      <aside class="host-left">
+        <div class="host-score-card team-a">
+          <div class="score-team-name" id="teamANameDisplay">Team A</div>
+          <div class="score-pts" id="scoreA">0</div>
+        </div>
+        <div class="host-score-card team-b">
+          <div class="score-team-name" id="teamBNameDisplay">Team B</div>
+          <div class="score-pts" id="scoreB">0</div>
+        </div>
+        <div class="guess-log hidden" id="guessLog">
+          <div class="guess-log-label">Guesses This Round</div>
+          <div id="guessLogList"></div>
+        </div>
+      </aside>
+
+      <!-- Right: round control -->
+      <main class="host-right">
+        <!-- Between rounds -->
+        <div id="roundSetup">
+          <div class="round-setup-info" id="roundSetupInfo">Ready to start!</div>
+          <button class="btn btn-primary btn-lg" id="startRoundBtn">▶ Start Round</button>
+        </div>
+
+        <!-- During round -->
+        <div id="roundPanel" class="hidden">
+          <div class="round-progress" id="roundProgress">Round 1 / 10</div>
+          <div class="round-drawing-team" id="roundTeamBadge"></div>
+          <div class="round-word" id="roundWord"></div>
+          <div class="round-timer" id="roundTimerDisplay">—</div>
+          <div class="host-round-controls">
+            <button class="btn btn-danger btn-sm" id="endRoundBtn">⏹ End Round Early</button>
+          </div>
+        </div>
+
+        <!-- After round result -->
+        <div id="roundResult" class="hidden">
+          <div id="roundResultText"></div>
+          <div id="roundResultWord"></div>
+          <div class="host-round-controls" style="margin-top:1.5rem">
+            <button class="btn btn-primary" id="nextRoundBtn">Next Round →</button>
+            <button class="btn btn-ghost hidden" id="endFromResultBtn">End Game</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Lobby Overlay -->
+    <div id="lobbyOverlay" class="dg-lobby-overlay hidden">
+      <div class="dg-lobby-card">
+        <div>🎨 Waiting for players to join</div>
+        <div id="lobbyChips"></div>
+        <p id="lobbyCount">0 players joined</p>
+        <button class="btn btn-primary btn-lg" id="beginGameBtn">🎮 Begin Game</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../movie-emoji/js/firebase-config.js"></script>
+  <script src="data/words.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>

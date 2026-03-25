@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Draw &amp; Guess — Play</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="dg-player-body">
+
+  <!-- Confetti canvas (fixed overlay) -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- ═══ JOIN ═══ -->
+  <div id="viewJoin" class="dg-view">
+    <div class="player-card">
+      <div>🎨</div>
+      <h1>Draw &amp; Guess</h1>
+      <form id="joinForm" novalidate>
+        <div id="roomStatusMsg" class="room-status-msg"></div>
+        <input
+          id="joinRoom"
+          placeholder="Room Code"
+          maxlength="5"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+        />
+        <div id="namePickerSection" class="hidden">
+          <select id="joinNameSelect">
+            <option value="">— pick your name —</option>
+          </select>
+          <div id="namePickerMsg"></div>
+        </div>
+        <button type="submit" id="joinBtn" disabled>Join Game 🎮</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ WAITING ═══ -->
+  <div id="viewWaiting" class="dg-view hidden">
+    <div class="player-waiting">
+      <span class="waiting-pencil-anim">✏️</span>
+      <h2 id="waitingTitle">Get ready!</h2>
+      <p id="waitingSub">Waiting for the host…</p>
+    </div>
+  </div>
+
+  <!-- ═══ DRAWING (I am the drawer) ═══ -->
+  <div id="viewDrawing" class="dg-view hidden">
+    <div class="drawing-top-bar">
+      <span class="drawing-round-badge" id="drawingRoundBadge">Round 1</span>
+      <span class="drawing-word-label">YOUR WORD:</span>
+      <span class="drawing-word" id="drawingWord">elephant</span>
+    </div>
+    <div class="drawing-canvas-wrap">
+      <canvas id="drawingCanvas"></canvas>
+    </div>
+    <div class="drawing-controls">
+      <div class="color-row">
+        <button class="color-btn active" data-color="#1e293b" style="background:#1e293b" title="Black"></button>
+        <button class="color-btn" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+        <button class="color-btn" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+        <button class="color-btn" data-color="#10b981" style="background:#10b981" title="Green"></button>
+        <button class="color-btn" data-color="#f59e0b" style="background:#f59e0b" title="Yellow"></button>
+        <button class="color-btn" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+        <button class="color-btn" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+        <button class="color-btn eraser-btn" data-color="eraser" title="Eraser">⬜</button>
+      </div>
+      <div class="size-row">
+        <button class="size-btn" data-size="3" title="Small">
+          <span style="width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block"></span>
+        </button>
+        <button class="size-btn active" data-size="6" title="Medium">
+          <span style="width:9px;height:9px;border-radius:50%;background:currentColor;display:inline-block"></span>
+        </button>
+        <button class="size-btn" data-size="14" title="Large">
+          <span style="width:14px;height:14px;border-radius:50%;background:currentColor;display:inline-block"></span>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="clearCanvasBtn" style="margin-left:auto">🗑 Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ GUESSING (my team draws, I guess) ═══ -->
+  <div id="viewGuessing" class="dg-view hidden">
+    <div class="guessing-header">
+      <span id="guessingTeamBadge"></span>
+      <span id="guessingRound" style="font-size:.8rem;color:var(--clr-text-muted)">Round 1</span>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="guessPermanentCanvas"></canvas>
+      <canvas id="guessLiveCanvas"></canvas>
+    </div>
+    <div id="wrongGuesses"></div>
+    <div class="guess-input-row">
+      <input
+        id="guessInput"
+        placeholder="Type your guess…"
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+      />
+      <button id="guessSubmitBtn" aria-label="Submit guess">→</button>
+    </div>
+    <div id="guessResult"></div>
+  </div>
+
+  <!-- ═══ WATCHING (other team draws) ═══ -->
+  <div id="viewWatching" class="dg-view hidden">
+    <div class="watching-header" id="watchingHeader">Team X is drawing…</div>
+    <div class="canvas-wrap" style="margin:.75rem">
+      <canvas id="watchPermanentCanvas"></canvas>
+      <canvas id="watchLiveCanvas"></canvas>
+    </div>
+    <p class="watching-sub">Watch and wait — it's not your turn to guess!</p>
+  </div>
+
+  <!-- ═══ ROUND OVER ═══ -->
+  <div id="viewRoundOver" class="dg-view hidden">
+    <div class="round-over-card" id="roundOverCard">
+      <div id="roundOverBanner"></div>
+      <div class="round-over-word" id="roundOverWord"></div>
+      <p>Waiting for next round…</p>
+    </div>
+  </div>
+
+  <!-- ═══ GAME OVER ═══ -->
+  <div id="viewGameover" class="dg-view hidden">
+    <div class="player-gameover">
+      <div>🏆</div>
+      <h1>Game Over!</h1>
+      <div id="gameoverResult"></div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../movie-emoji/js/firebase-config.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>
