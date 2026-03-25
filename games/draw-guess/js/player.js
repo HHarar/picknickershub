@@ -21,6 +21,7 @@ let ps = {
     isDrawing: false,
     localCtx: null,
     localStrokes: [],
+    currentPts: [],
   },
 };
 
@@ -236,6 +237,7 @@ function showDrawingView(round, game) {
   ps.drawing.width = 6;
   ps.drawing.isDrawing = false;
   ps.drawing.localStrokes = [];
+  ps.drawing.currentPts = [];
 
   // Reset color buttons
   document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
@@ -301,36 +303,38 @@ function startStroke({ vx, vy }) {
   ps.drawing.isDrawing = true;
   ps.drawing.strokeId = Date.now();
   ps.drawing.buffer = [`${vx},${vy}`];
+  ps.drawing.currentPts = [{ vx, vy }];
 
   // Register onDisconnect
   if (DgDB.db) {
     DgDB.db.ref(`dg/${ps.roomCode}/canvas/live`).onDisconnect().set(null);
   }
 
-  // Draw locally
-  drawLocalPoint(vx, vy, true);
+  drawFullCanvas();
 }
 
 function continueStroke({ vx, vy }) {
   if (!ps.drawing.isDrawing) return;
   ps.drawing.buffer.push(`${vx},${vy}`);
+  ps.drawing.currentPts.push({ vx, vy });
 
-  // Auto-split at 400 points
+  // Auto-split at 400 points — commit segment, keep drawing locally
   if (ps.drawing.buffer.length >= 400) {
-    // Commit current segment as a permanent stroke
-    const segId = ps.drawing.strokeId;
-    const segBuffer = [...ps.drawing.buffer];
     const color = ps.drawing.isEraser ? '#ffffff' : ps.drawing.color;
-    const width = ps.drawing.width;
-    DgDB.commitStroke(ps.roomCode, `s_${segId}`, { c: color, w: width, p: segBuffer.join(';') });
-    // Start fresh buffer with last point (for continuity)
-    const lastPt = ps.drawing.buffer[ps.drawing.buffer.length - 1];
-    ps.drawing.buffer = [lastPt];
+    DgDB.commitStroke(ps.roomCode, `s_${ps.drawing.strokeId}`, {
+      c: color, w: ps.drawing.width, p: ps.drawing.buffer.join(';'),
+    });
+    // Archive this segment into localStrokes so redraw includes it
+    ps.drawing.localStrokes.push({
+      c: color, w: ps.drawing.width, pts: [...ps.drawing.currentPts],
+    });
+    const lastPt = ps.drawing.currentPts[ps.drawing.currentPts.length - 1];
+    ps.drawing.buffer = [`${lastPt.vx},${lastPt.vy}`];
+    ps.drawing.currentPts = [lastPt];
     ps.drawing.strokeId = Date.now();
   }
 
-  // Draw locally
-  drawLocalPoint(vx, vy, false);
+  drawFullCanvas();
 
   // Throttled push to Firebase
   if (!ps.drawing.pushTimer) {
@@ -359,55 +363,66 @@ function endStroke() {
 
   if (ps.drawing.buffer.length < 2) {
     ps.drawing.buffer = [];
-    // Remove live stroke
+    ps.drawing.currentPts = [];
     DgDB.pushLiveStroke(ps.roomCode, null).catch(() => {});
     return;
   }
 
   const color = ps.drawing.isEraser ? '#ffffff' : ps.drawing.color;
   const key = `s_${ps.drawing.strokeId}`;
+
+  // Archive into localStrokes so future redraws include it
+  const finishedPts = [...ps.drawing.currentPts];
+  ps.drawing.localStrokes.push({ c: color, w: ps.drawing.width, pts: finishedPts });
+  ps.drawing.currentPts = [];
+  ps.drawing.buffer = [];
+
   DgDB.commitStroke(ps.roomCode, key, {
     c: color,
     w: ps.drawing.width,
-    p: ps.drawing.buffer.join(';'),
+    p: finishedPts.map(pt => `${pt.vx},${pt.vy}`).join(';'),
   });
-  ps.drawing.buffer = [];
 }
 
-function drawLocalPoint(vx, vy, isStart) {
-  const ctx = ps.drawing.localCtx;
-  if (!ctx) return;
+/** Redraw the entire local canvas from scratch using localStrokes + currentPts. */
+function drawFullCanvas() {
   const canvas = document.getElementById('drawingCanvas');
-  if (!canvas) return;
+  const ctx = ps.drawing.localCtx;
+  if (!canvas || !ctx) return;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const scaleX = canvas.width / 1000;
   const scaleY = canvas.height / 750;
-  const scale = Math.min(scaleX, scaleY);
-  const px = vx * scaleX;
-  const py = vy * scaleY;
 
-  if (isStart) {
-    ctx.beginPath();
-    ctx.moveTo(px, py);
-    ctx.strokeStyle = ps.drawing.isEraser ? '#ffffff' : ps.drawing.color;
-    ctx.lineWidth = Math.max(1, ps.drawing.width * scale);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    // Store start position for continuing path
-    ps.drawing._lastPx = px;
-    ps.drawing._lastPy = py;
-  } else {
-    ctx.strokeStyle = ps.drawing.isEraser ? '#ffffff' : ps.drawing.color;
-    ctx.lineWidth = Math.max(1, ps.drawing.width * scale);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(ps.drawing._lastPx || px, ps.drawing._lastPy || py);
-    ctx.lineTo(px, py);
-    ctx.stroke();
-    ps.drawing._lastPx = px;
-    ps.drawing._lastPy = py;
+  // Draw committed strokes
+  ps.drawing.localStrokes.forEach(stroke => drawLocalStroke(ctx, stroke, scaleX, scaleY));
+
+  // Draw in-progress stroke
+  if (ps.drawing.currentPts.length >= 2) {
+    drawLocalStroke(ctx, {
+      c: ps.drawing.isEraser ? '#ffffff' : ps.drawing.color,
+      w: ps.drawing.width,
+      pts: ps.drawing.currentPts,
+    }, scaleX, scaleY);
   }
+}
+
+function drawLocalStroke(ctx, stroke, scaleX, scaleY) {
+  const pts = stroke.pts;
+  if (!pts || pts.length < 2) return;
+  const scale = Math.min(scaleX, scaleY);
+  ctx.beginPath();
+  ctx.strokeStyle = stroke.c;
+  ctx.lineWidth = Math.max(1, stroke.w * scale);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.moveTo(pts[0].vx * scaleX, pts[0].vy * scaleY);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].vx * scaleX, pts[i].vy * scaleY);
+  }
+  ctx.stroke();
 }
 
 /* ─── DRAWING CONTROLS ────────────────────────────────────── */
@@ -439,13 +454,10 @@ function initDrawingControls() {
   const clearBtn = document.getElementById('clearCanvasBtn');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
+      ps.drawing.localStrokes = [];
+      ps.drawing.currentPts = [];
       DgDB.clearCanvas(ps.roomCode);
-      const canvas = document.getElementById('drawingCanvas');
-      if (canvas && ps.drawing.localCtx) {
-        ps.drawing.localCtx.clearRect(0, 0, canvas.width, canvas.height);
-        ps.drawing.localCtx.fillStyle = '#ffffff';
-        ps.drawing.localCtx.fillRect(0, 0, canvas.width, canvas.height);
-      }
+      drawFullCanvas();
     });
   }
 }
