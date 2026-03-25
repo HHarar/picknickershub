@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TV Display — Most Likely To</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤔</text></svg>" />
+  <link rel="stylesheet" href="css/game.css" />
+  <style>
+    body { cursor: none; }
+  </style>
+</head>
+<body class="mlt-tv-body">
+
+  <header class="mlt-tv-header">
+    <div>🤔 Most Likely To</div>
+    <div id="tvRoomCode">—</div>
+    <div id="tvQProgress" style="display:none"></div>
+  </header>
+
+  <!-- LOBBY -->
+  <div id="tvLobby" class="mlt-tv-lobby">
+    <h1>Most Likely To</h1>
+    <p>Scan to join the game!</p>
+    <div id="tvQrCode"></div>
+    <div id="tvPlayerUrl"></div>
+    <div id="tvPlayerChips"></div>
+    <p id="tvLobbyStatus">Waiting for host to start…</p>
+  </div>
+
+  <!-- QUESTION -->
+  <div id="tvQuestion" class="mlt-tv-question hidden">
+    <div class="tv-question-text" id="tvQuestionText"></div>
+    <div class="tv-vote-grid" id="tvVoteGrid"></div>
+  </div>
+
+  <!-- GAMEOVER -->
+  <div id="tvGameover" class="mlt-tv-gameover hidden">
+    <div>🏆</div>
+    <div id="tvWinner"></div>
+    <div id="tvFinalScores"></div>
+  </div>
+
+  <!-- Scores overlay -->
+  <div id="tvScoresOverlay" class="mlt-scores-overlay hidden">
+    <div id="tvScoresContent"></div>
+    <button onclick="document.getElementById('tvScoresOverlay').classList.add('hidden')">✕</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../../movie-emoji/js/firebase-config.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/tv.js"></script>
+</body>
+</html>

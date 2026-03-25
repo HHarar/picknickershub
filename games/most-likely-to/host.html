@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host — Most Likely To</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤔</text></svg>" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="mlt-host-body">
+
+  <!-- ─── SETUP SCREEN ─── -->
+  <div id="setupScreen">
+    <div class="setup-card">
+      <div class="setup-logo">🤔</div>
+      <h1>Most Likely To</h1>
+      <p>Set up your game night. Everyone votes on their phones!</p>
+
+      <div id="serverStatusBar" class="server-status-bar">Checking connection…</div>
+
+      <form id="setupForm" novalidate>
+
+        <div class="setup-section-label">Players (2–8)</div>
+        <div id="playerList"></div>
+        <button type="button" id="addPlayerBtn">+ Add Player</button>
+
+        <div class="setup-section-label">Number of Questions</div>
+        <div class="q-count-group">
+          <button type="button" class="q-count-btn" data-count="5">5</button>
+          <button type="button" class="q-count-btn active" data-count="10">10</button>
+          <button type="button" class="q-count-btn" data-count="15">15</button>
+          <button type="button" class="q-count-btn" data-count="20">20</button>
+        </div>
+
+        <div class="setup-section-label">Timer per Question</div>
+        <select id="timerSelect" class="setup-select">
+          <option value="0">No Timer</option>
+          <option value="30">30 seconds</option>
+          <option value="45">45 seconds</option>
+          <option value="60" selected>60 seconds</option>
+        </select>
+
+        <div class="setup-submit-wrap">
+          <button type="submit" class="btn btn-primary btn-lg">🎮 Create Game</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── GAME SCREEN ─── -->
+  <div id="gameScreen" class="hidden">
+
+    <header class="mlt-header" id="mltHeader">
+      <div>🤔 Most Likely To</div>
+      <div class="tv-status" id="tvStatus">TV: not connected</div>
+      <div>Room: <strong id="roomCodeDisplay">—</strong></div>
+      <button class="btn btn-secondary btn-sm" id="openTvBtn">📺 Open TV View</button>
+      <button class="btn btn-ghost btn-sm" id="showScoresBtn">📊 Show Scores</button>
+      <button class="btn btn-danger btn-sm" id="endGameBtn">End Game</button>
+    </header>
+
+    <div class="host-game-grid">
+
+      <!-- Left: Scores + Vote Tracker -->
+      <aside class="host-left">
+        <div class="host-scores-panel" id="scoresPanel">
+          <div class="scores-panel-title">Scores</div>
+        </div>
+        <div class="host-vote-tracker hidden" id="voteTracker">
+          <div class="vote-tracker-label">
+            Votes: <span id="voteCount">0</span> / <span id="voteTotal">0</span>
+          </div>
+          <div id="voterChips"></div>
+        </div>
+      </aside>
+
+      <!-- Right: Question + Controls -->
+      <main class="host-right">
+        <div id="hostWaiting">
+          <div>Waiting for players to join…</div>
+          <div id="hostJoinedCount">0 joined</div>
+        </div>
+
+        <div id="questionPanel" class="hidden">
+          <div class="host-q-progress" id="qProgress">Q 1 / 10</div>
+          <div class="host-q-text" id="questionText"></div>
+          <div class="host-q-controls">
+            <button id="closeVotingBtn" class="btn btn-primary">Close Voting</button>
+            <button id="nextQBtn" class="btn btn-secondary hidden">Next Question →</button>
+            <button id="endFromResultBtn" class="btn btn-ghost hidden">End Game</button>
+          </div>
+          <div id="resultDisplay" class="hidden"></div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Lobby Overlay -->
+    <div id="lobbyOverlay" class="mlt-lobby-overlay hidden">
+      <div class="mlt-lobby-card">
+        <div>🤔 Waiting for Players</div>
+        <div id="lobbyPlayerChips"></div>
+        <p id="lobbyCount">0 players joined</p>
+        <button id="beginGameBtn" class="btn btn-primary btn-lg">🎮 Begin Game</button>
+      </div>
+    </div>
+
+  </div><!-- /gameScreen -->
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../../movie-emoji/js/firebase-config.js"></script>
+  <script src="data/questions.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>

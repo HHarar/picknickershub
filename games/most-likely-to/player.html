@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="Most Likely To — vote on your phone!" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤔</text></svg>" />
+  <title>Most Likely To — Play</title>
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body class="mlt-player-body">
+
+  <!-- Confetti canvas (fixed overlay) -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- ─── JOIN view ─── -->
+  <div id="viewJoin" class="mlt-player-view">
+    <div class="player-card">
+      <div class="player-logo">🤔</div>
+      <h1>Most Likely To</h1>
+      <form id="joinForm" novalidate>
+        <div id="roomStatusMsg" class="room-status-msg"></div>
+        <input
+          id="joinRoom"
+          type="text"
+          placeholder="ROOM CODE"
+          maxlength="5"
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <div id="namePickerSection" class="hidden">
+          <select id="joinNameSelect">
+            <option value="">— pick your name —</option>
+          </select>
+          <div id="namePickerMsg"></div>
+        </div>
+        <button type="submit" id="joinBtn" disabled>Start Playing 🎉</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── WAITING view ─── -->
+  <div id="viewWaiting" class="mlt-player-view hidden">
+    <div class="player-waiting">
+      <div class="waiting-spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-emoji">🤔</div>
+      </div>
+      <h2 id="waitingTitle">Get ready!</h2>
+      <p id="waitingSub">Waiting for the host to start…</p>
+      <div class="player-score-display">
+        Score: <strong id="waitingScore">0</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── VOTING view ─── -->
+  <div id="viewVoting" class="mlt-player-view hidden">
+    <div class="player-voting">
+      <div class="voting-header">
+        <div class="voting-progress" id="votingProgress">Q 1/10</div>
+        <div class="voting-score">Score: <strong id="votingScore">0</strong></div>
+      </div>
+      <div class="voting-question" id="votingQuestion"></div>
+      <div class="voting-choices" id="votingChoices"></div>
+    </div>
+  </div>
+
+  <!-- ─── VOTED view ─── -->
+  <div id="viewVoted" class="mlt-player-view hidden">
+    <div class="player-voted">
+      <div class="voted-icon">✓</div>
+      <h2>Vote Submitted!</h2>
+      <p>You voted for <strong id="myVoteDisplay">—</strong></p>
+      <p>Waiting for others…</p>
+      <div class="player-score-display">Score: <strong id="votedScore">0</strong></div>
+    </div>
+  </div>
+
+  <!-- ─── RESULT view ─── -->
+  <div id="viewResult" class="mlt-player-view hidden">
+    <div class="player-result-card" id="resultCard">
+      <div id="resultPointBanner"></div>
+      <div class="result-winner-label">Most Likely To…</div>
+      <div class="result-winner-name" id="resultWinnerName"></div>
+      <div class="result-vote-summary" id="resultVoteSummary"></div>
+      <div class="player-score-display">Score: <strong id="resultScore">0</strong></div>
+    </div>
+  </div>
+
+  <!-- ─── GAMEOVER view ─── -->
+  <div id="viewGameover" class="mlt-player-view hidden">
+    <div class="player-gameover">
+      <div class="gameover-trophy">🏆</div>
+      <h1>Game Over!</h1>
+      <div class="gameover-score">Your score: <strong id="gameoverScore">0</strong></div>
+      <div class="gameover-history">
+        <h3>Your Vote History</h3>
+        <div id="voteHistoryList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script src="../../movie-emoji/js/firebase-config.js"></script>
+  <script src="js/game-db.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

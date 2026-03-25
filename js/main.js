@@ -21,6 +21,17 @@ const GAMES = [
     url: 'games/movie-emoji/host.html',
   },
   {
+    id: 'most-likely-to',
+    title: 'Most Likely To',
+    description: 'Everyone votes on who in the group is most likely to do something. Get points for picking the most popular answer!',
+    emoji: '🤔',
+    bgColor: '#312e81',
+    category: 'party',
+    players: '3–8',
+    comingSoon: false,
+    url: 'games/most-likely-to/host.html',
+  },
+  {
     id: 'wordle-clone',
     title: 'Word Guess',
     description: 'Guess the hidden 5-letter word in 6 tries. Classic Wordle-style.',
