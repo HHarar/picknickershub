@@ -145,6 +145,7 @@ function initJoinForm() {
       playerState.roomCode = room;
       $('#playerNameDisplay').textContent = name;
       $('#playerRoomCode').textContent    = room;
+      saveSession();
       connectSSE(room);
       setView('waiting');
     } catch (err) {
@@ -329,18 +330,59 @@ function showGameOver(scores) {
   setView('gameover');
 }
 
+/* ─── SESSION / REJOIN ──────────────────────────────────────── */
+const SESSION_KEY = 'movieEmojiPlayer';
+
+function saveSession() {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    name: playerState.name, roomCode: playerState.roomCode,
+  }));
+}
+
+async function tryRejoin() {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return false;
+  let session;
+  try { session = JSON.parse(raw); } catch { return false; }
+  const { name, roomCode } = session;
+  if (!name || !roomCode) return false;
+
+  let game;
+  try { game = await GameDB.getState(roomCode); } catch { return false; }
+  if (!game || game.status === 'over') {
+    sessionStorage.removeItem(SESSION_KEY);
+    return false;
+  }
+
+  // Attempt to mark as joined (409 = already joined, that's fine)
+  try { await GameDB.joinGame(roomCode, name); } catch (e) { if (e.status !== 409) return false; }
+
+  playerState.name     = name;
+  playerState.roomCode = roomCode;
+  $('#playerNameDisplay').textContent = name;
+  $('#playerRoomCode').textContent    = roomCode;
+  document.getElementById('playerScoreWrap')?.classList.remove('hidden');
+
+  connectSSE(roomCode);
+  setWaiting('Rejoined! Waiting for the next question…', 'You are back in the game.');
+  return true;
+}
+
 /* ─── BOOT ──────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  initJoinForm();
+  initAnswerForm();
+
+  // Try session rejoin first
+  if (await tryRejoin()) return;
+
   const params = new URLSearchParams(location.search);
   const room   = (params.get('room') || '').toUpperCase();
-
   if (room) {
     $('#joinRoom').value = room;
     $('#playerRoomCode').textContent = room;
     fetchGameNames(room);
   }
 
-  initJoinForm();
-  initAnswerForm();
   setView('join');
 });

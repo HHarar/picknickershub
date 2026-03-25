@@ -94,6 +94,10 @@ window.GameDB = (() => {
         });
       },
 
+      async updateScores(code, scores) {
+        await _ref(code).child('scores').update(scores);
+      },
+
       async endGame(code, scores) {
         await _ref(code).update({ status: 'over', scores: scores || {} });
       },
@@ -198,6 +202,7 @@ window.GameDB = (() => {
     async pushResult(code, name, res) { await _post('/api/game/result',   { room: code, name, result: res }); },
     async submitAnswer(code, name, a) { await _post('/api/game/submit',   { room: code, name, answer: a }); },
     async nextQuestion(code)          { await _post('/api/game/next',     { room: code }); },
+    async updateScores(code, scores)  { /* no-op for local server; host tracks scores in memory */ },
     async endGame(code, scores)       { await _post('/api/game/over',     { room: code }); },
 
     subscribeHost(code, { onPlayerJoined, onPlayerSubmitted, onAnswersUpdated }) {

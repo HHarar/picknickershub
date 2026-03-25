@@ -10,11 +10,42 @@ const channel = new BroadcastChannel('movie-emoji-game');
 
 /* ─── LOCAL STATE ─────────────────────────────────────────── */
 let tvState = {
-  entities:    [],
-  roomCode:    '—',
-  timerHandle: null,
-  timerTotal:  60,
+  entities:      [],
+  roomCode:      '—',
+  timerHandle:   null,
+  timerTotal:    60,
+  answeredNames: new Set(),
 };
+
+/* ─── FIREBASE SCORE SUBSCRIPTION ─────────────────────────── */
+let _tvFirebaseDB   = null;
+let _tvScoreUnsub   = null;
+
+function initTvFirebase() {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!window.firebase || !cfg || !cfg.apiKey || cfg.apiKey === 'REPLACE_ME') return;
+  try {
+    // Reuse existing app or create a named one for the TV tab
+    let app;
+    try { app = firebase.app('tv'); }
+    catch { app = firebase.initializeApp(cfg, 'tv'); }
+    _tvFirebaseDB = firebase.database(app);
+  } catch (e) { console.warn('[TV] Firebase init:', e); }
+}
+
+function subscribeFirebaseScores(roomCode) {
+  if (!_tvFirebaseDB) return;
+  if (_tvScoreUnsub) { _tvScoreUnsub(); _tvScoreUnsub = null; }
+  const ref = _tvFirebaseDB.ref(`games/${roomCode}/scores`);
+  function onScores(snap) {
+    if (!snap.exists()) return;
+    const scores = snap.val();
+    tvState.entities = tvState.entities.map(e => ({ ...e, score: scores[e.name] ?? e.score }));
+    renderScoreboard(tvState.entities);
+  }
+  ref.on('value', onScores);
+  _tvScoreUnsub = () => ref.off('value', onScores);
+}
 
 /* ─── HELPERS ──────────────────────────────────────────────── */
 function $(sel, root = document) { return root.querySelector(sel); }
@@ -181,6 +212,9 @@ const handlers = {
     if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
     tvState.answeredNames = new Set();
 
+    // Subscribe to Firebase for real-time score updates (survives TV refresh)
+    subscribeFirebaseScores(roomCode);
+
     renderScoreboard(entities);
     setView('lobby');
   },
@@ -322,9 +356,10 @@ channel.onmessage = (e) => {
   }
 };
 
-/* ─── ANNOUNCE READY ───────────────────────────────────────── */
+/* ─── BOOT ─────────────────────────────────────────────────── */
+initTvFirebase();
+
 // Tell host.js the TV is ready to receive messages.
-// Small delay lets the host's channel listener spin up first.
 setTimeout(() => {
   channel.postMessage({ type: 'TV_READY', payload: {}, ts: Date.now() });
 }, 300);

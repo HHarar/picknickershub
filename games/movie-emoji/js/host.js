@@ -525,6 +525,10 @@ function updateScore(entityId, delta) {
     void el.offsetWidth;
     el.classList.add('anim-pop-in');
   }
+  // Persist latest scores to Firebase so TV can always read them
+  const scores = {};
+  state.entities.forEach(e => { scores[e.name] = e.score; });
+  GameDB.updateScores(state.roomCode, scores);
   broadcast('SCORES_UPDATE', { entities: state.entities, delta: { entityId, points: delta } });
 }
 
