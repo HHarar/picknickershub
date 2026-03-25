@@ -135,9 +135,6 @@ window.DgDB = (() => {
             else if (g.status === 'over') onGameOver?.(g.scores);
             else onState?.(g);
             prevStatus = g.status;
-          } else if (g.status === 'drawing') {
-            // re-subscribe case: round data may have changed
-            onRoundStart?.(g);
           }
         });
         return () => r.off('value');
