@@ -300,6 +300,12 @@
                 <div class="host-subs-bubbles" id="hostSubsBubbles"></div>
               </div>
 
+              <!-- Player answers — visible after all have submitted -->
+              <div class="host-answers-area hidden" id="hostAnswersArea">
+                <div class="host-answers-label">📝 Player Answers</div>
+                <div id="hostAnswersList"></div>
+              </div>
+
               <!-- Timer display (hidden unless timer running) -->
               <div class="host-timer-bar hidden" id="hostTimerBar">
                 <div class="host-timer-display" id="hostTimerDisplay">—</div>
@@ -314,6 +320,23 @@
       </main>
 
     </div><!-- /.host-body-grid -->
+    <!-- ─── LOBBY OVERLAY (shown before first round starts) ─── -->
+    <div class="host-lobby-overlay hidden" id="hostLobbyOverlay">
+      <div class="host-lobby-card">
+        <div class="host-lobby-title">🎬 Waiting for players to join</div>
+        <div class="host-lobby-players" id="hostLobbyPlayers">
+          <!-- Player join chips injected by host.js -->
+        </div>
+        <p class="host-lobby-count" id="hostLobbyCount">0 players joined</p>
+        <button class="btn btn-primary btn-lg" id="beginGameBtn">🎮 Begin Game</button>
+        <p style="font-size:.72rem;color:var(--clr-text-dim);margin-top:.5rem">
+          You can start now or wait for more players to join.
+        </p>
+      </div>
+    </div>
+
+    <!-- ─── PLAYER ANSWERS PANEL (shown in scoring phase) ─── -->
+
   </div><!-- /#hostGame -->
 
   <!-- Scripts — Firebase SDK (optional), then data + logic -->

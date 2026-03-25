@@ -1,23 +1,16 @@
 /**
  * GameDB — transport abstraction for Movie Emoji Game
  *
- * Picks Firebase Realtime Database when firebase-config.js has real values,
- * falls back to the local Node server API + SSE otherwise.
+ * Uses Firebase Realtime Database when firebase-config.js has real values,
+ * falls back to local Node server API + SSE otherwise.
  *
- * Public API (window.GameDB):
- *   .isFirebase          — boolean
- *   .createGame(code, mode, playerNames)
- *   .getState(code)      — null if room not found; throws {code:'NO_SERVER'} if unreachable
- *   .joinGame(code, name) — throws {status:409} if name taken
- *   .pushQuestion(code, question, timerEnd)
- *   .submitAnswer(code, name, answer)
- *   .nextQuestion(code)
- *   .endGame(code, scores)
- *   .subscribeHost(code, { onPlayerJoined, onPlayerSubmitted }) → unsub()
- *   .subscribePlayer(code, { onQuestionStart, onNextQuestion, onGameOver, onState }) → unsub()
+ * Firebase game schema:
+ *   games/{code}/{ mode, playerNames, status, joined, answers,
+ *                  reveals, results, currentQuestion, scores }
+ *
+ * status values: lobby → active → question → active (loop) → over
  */
 window.GameDB = (() => {
-  /* ── Detect Firebase ──────────────────────────────────── */
   const _cfg = window.FIREBASE_CONFIG;
   const _isFirebase = !!(
     _cfg &&
@@ -26,243 +19,205 @@ window.GameDB = (() => {
   );
 
   /* ══════════════════════════════════════════════════════
-     FIREBASE IMPLEMENTATION
+     FIREBASE
      ══════════════════════════════════════════════════════ */
   if (_isFirebase) {
     firebase.initializeApp(_cfg);
     const _db = firebase.database();
 
-    function _ref(roomCode) {
-      return _db.ref(`games/${roomCode}`);
-    }
+    function _ref(code) { return _db.ref(`games/${code}`); }
 
-    function _norm(game) {
-      if (!game) return null;
-      game.joined  = game.joined  || {};
-      game.answers = game.answers || {};
-      // Firebase may convert dense arrays to objects; normalize
-      if (game.playerNames && !Array.isArray(game.playerNames)) {
-        game.playerNames = Object.values(game.playerNames);
-      }
-      return game;
+    function _norm(g) {
+      if (!g) return null;
+      g.joined   = g.joined   || {};
+      g.answers  = g.answers  || {};
+      g.reveals  = g.reveals  || {};
+      g.results  = g.results  || {};
+      if (g.playerNames && !Array.isArray(g.playerNames))
+        g.playerNames = Object.values(g.playerNames);
+      return g;
     }
 
     return {
       isFirebase: true,
 
-      async createGame(roomCode, mode, playerNames) {
+      async createGame(code, mode, playerNames) {
         const scores = {};
         playerNames.forEach(n => { scores[n] = 0; });
-        await _ref(roomCode).set({
-          mode,
-          playerNames,
-          status:          'lobby',
-          joined:          {},
-          answers:         {},
-          currentQuestion: null,
-          scores,
+        await _ref(code).set({
+          mode, playerNames, scores,
+          status: 'lobby', joined: {}, answers: {},
+          reveals: {}, results: {}, currentQuestion: null,
         });
       },
 
-      async getState(roomCode) {
-        const snap = await _ref(roomCode).once('value');
+      async getState(code) {
+        const snap = await _ref(code).once('value');
         return snap.exists() ? _norm(snap.val()) : null;
       },
 
-      async joinGame(roomCode, playerName) {
-        const snap = await _ref(roomCode).once('value');
-        if (!snap.exists()) {
-          const e = new Error('Room not found'); e.status = 404; throw e;
-        }
-        const joined = snap.val().joined || {};
-        if (joined[playerName]) {
-          const e = new Error('Name taken'); e.status = 409; throw e;
-        }
-        await _ref(roomCode).child('joined').child(playerName).set(true);
+      async joinGame(code, name) {
+        const snap = await _ref(code).once('value');
+        if (!snap.exists()) { const e = new Error('Not found'); e.status = 404; throw e; }
+        if ((snap.val().joined || {})[name]) { const e = new Error('Taken'); e.status = 409; throw e; }
+        await _ref(code).child('joined').child(name).set(true);
       },
 
-      async pushQuestion(roomCode, question, timerEnd) {
-        await _ref(roomCode).update({
-          status:          'question',
+      async beginGame(code) {
+        await _ref(code).update({ status: 'active' });
+      },
+
+      async pushQuestion(code, question, timerEnd) {
+        await _ref(code).update({
+          status: 'question',
           currentQuestion: { ...question, timerEnd: timerEnd || null },
-          answers:         {},
+          answers: {}, reveals: {}, results: {},
         });
       },
 
-      async submitAnswer(roomCode, playerName, answer) {
-        await _ref(roomCode).child('answers').child(playerName).set(answer);
+      async pushReveal(code, part, text) {
+        await _ref(code).child('reveals').child(part).set(text);
       },
 
-      async nextQuestion(roomCode) {
-        await _ref(roomCode).update({ status: 'between', currentQuestion: null });
+      async pushResult(code, playerName, result) {
+        await _ref(code).child('results').child(playerName).set(result);
       },
 
-      async endGame(roomCode, scores) {
-        await _ref(roomCode).update({ status: 'over', scores: scores || {} });
+      async submitAnswer(code, name, answer) {
+        await _ref(code).child('answers').child(name).set(answer);
       },
 
-      subscribeHost(roomCode, { onPlayerJoined, onPlayerSubmitted }) {
-        let prevJoined  = null;
-        let prevAnswers = null;
-        const gameRef   = _ref(roomCode);
+      async nextQuestion(code) {
+        await _ref(code).update({
+          status: 'active', currentQuestion: null,
+          reveals: {}, results: {}, answers: {},
+        });
+      },
 
-        function listener(snap) {
+      async endGame(code, scores) {
+        await _ref(code).update({ status: 'over', scores: scores || {} });
+      },
+
+      subscribeHost(code, { onPlayerJoined, onPlayerSubmitted, onAnswersUpdated }) {
+        let prevJoined = null, prevAnswers = null;
+        const r = _ref(code);
+        function fn(snap) {
           if (!snap.exists()) return;
-          const game    = _norm(snap.val());
-          const joined  = game.joined;
-          const answers = game.answers;
-
+          const g = _norm(snap.val());
           if (prevJoined !== null) {
-            Object.keys(joined)
-              .filter(k => !prevJoined[k])
-              .forEach(name => onPlayerJoined && onPlayerJoined(name, joined));
+            Object.keys(g.joined).filter(k => !prevJoined[k])
+              .forEach(n => onPlayerJoined?.(n, g.joined));
           }
-          prevJoined = { ...joined };
-
+          prevJoined = { ...g.joined };
           if (prevAnswers !== null) {
-            const newAnswerers = Object.keys(answers).filter(k => !prevAnswers[k]);
-            if (newAnswerers.length) {
-              const totalJoined    = Object.keys(joined).length;
-              const totalSubmitted = Object.keys(answers).length;
-              newAnswerers.forEach(name =>
-                onPlayerSubmitted && onPlayerSubmitted(name, totalSubmitted, totalJoined));
+            const newA = Object.keys(g.answers).filter(k => !prevAnswers[k]);
+            if (newA.length) {
+              const tj = Object.keys(g.joined).length;
+              const ts = Object.keys(g.answers).length;
+              newA.forEach(n => onPlayerSubmitted?.(n, ts, tj));
+              onAnswersUpdated?.(g.answers);
             }
           }
-          prevAnswers = { ...answers };
+          prevAnswers = { ...g.answers };
         }
-
-        gameRef.on('value', listener);
-        return () => gameRef.off('value', listener);
+        r.on('value', fn);
+        return () => r.off('value', fn);
       },
 
-      subscribePlayer(roomCode, { onQuestionStart, onNextQuestion, onGameOver, onState }) {
-        let prevStatus = null;
-        let isFirst    = true;
-        const gameRef  = _ref(roomCode);
-
-        function listener(snap) {
+      subscribePlayer(code, opts) {
+        const { playerName, onQuestionStart, onNextQuestion, onGameOver,
+                onState, onReveal, onResult, onLobby } = opts;
+        let prevStatus = null, prevRevStr = '{}', prevResult = null, isFirst = true;
+        const r = _ref(code);
+        function fn(snap) {
           if (!snap.exists()) return;
-          const game = _norm(snap.val());
-
+          const g = _norm(snap.val());
           if (isFirst) {
             isFirst = false;
-            onState && onState(game);
-            prevStatus = game.status;
+            prevStatus  = g.status;
+            prevRevStr  = JSON.stringify(g.reveals);
+            prevResult  = playerName ? (g.results[playerName] || null) : null;
+            onState?.(g);
             return;
           }
-
-          if (game.status !== prevStatus) {
-            if (game.status === 'question' && game.currentQuestion) {
-              onQuestionStart && onQuestionStart(game.currentQuestion);
-            } else if (game.status === 'between') {
-              onNextQuestion && onNextQuestion();
-            } else if (game.status === 'over') {
-              onGameOver && onGameOver(game.scores || {});
-            }
-            prevStatus = game.status;
+          if (g.status !== prevStatus) {
+            if (g.status === 'question' && g.currentQuestion)   onQuestionStart?.(g.currentQuestion);
+            else if (g.status === 'active')                      onNextQuestion?.();
+            else if (g.status === 'lobby')                       onLobby?.();
+            else if (g.status === 'over')                        onGameOver?.(g.scores || {});
+            prevStatus = g.status;
+          }
+          const revStr = JSON.stringify(g.reveals);
+          if (revStr !== prevRevStr && Object.keys(g.reveals).length > 0) {
+            onReveal?.(g.reveals);
+            prevRevStr = revStr;
+          }
+          if (playerName) {
+            const myR = g.results[playerName] || null;
+            if (myR !== prevResult && myR) { onResult?.(myR); prevResult = myR; }
           }
         }
-
-        gameRef.on('value', listener);
-        return () => gameRef.off('value', listener);
+        r.on('value', fn);
+        return () => r.off('value', fn);
       },
     };
   }
 
   /* ══════════════════════════════════════════════════════
-     LOCAL SERVER FALLBACK (SSE + REST)
+     LOCAL SERVER FALLBACK
      ══════════════════════════════════════════════════════ */
-  async function _post(endpoint, data) {
+  async function _post(ep, data) {
     try {
-      await fetch(endpoint, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
-      });
-    } catch (e) {
-      console.warn('[GameDB] API error:', endpoint, e);
-    }
+      await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    } catch (e) { console.warn('[GameDB]', ep, e); }
   }
 
   return {
     isFirebase: false,
-
-    async createGame(roomCode, mode, playerNames) {
-      await _post('/api/game/create', { roomCode, mode, playerNames });
-    },
-
-    async getState(roomCode) {
+    async createGame(code, mode, names) { await _post('/api/game/create', { roomCode: code, mode, playerNames: names }); },
+    async getState(code) {
       let res;
-      try {
-        res = await fetch(`/api/game/state?room=${encodeURIComponent(roomCode)}`);
-      } catch {
-        const e = new Error('No server'); e.code = 'NO_SERVER'; throw e;
-      }
+      try { res = await fetch(`/api/game/state?room=${encodeURIComponent(code)}`); }
+      catch { const e = new Error('No server'); e.code = 'NO_SERVER'; throw e; }
       if (!res.ok) {
-        const isJson = res.headers.get('content-type')?.includes('application/json');
-        if (!isJson) {
+        if (!res.headers.get('content-type')?.includes('application/json')) {
           const e = new Error('No server'); e.code = 'NO_SERVER'; throw e;
         }
-        return null; // 404 JSON → room not found
+        return null;
       }
       return res.json();
     },
-
-    async joinGame(roomCode, playerName) {
-      const res = await fetch('/api/game/join', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ room: roomCode, name: playerName }),
-      });
-      if (res.status === 409) {
-        const e = new Error('Name taken'); e.status = 409; throw e;
-      }
+    async joinGame(code, name) {
+      const res = await fetch('/api/game/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ room: code, name }) });
+      if (res.status === 409) { const e = new Error('Taken'); e.status = 409; throw e; }
       if (!res.ok) throw new Error('Join failed');
     },
+    async beginGame(code)             { await _post('/api/game/begin',  { room: code }); },
+    async pushQuestion(code, q, te)   { await _post('/api/game/question', { room: code, question: q, timerEnd: te }); },
+    async pushReveal(code, part, txt) { await _post('/api/game/reveal',   { room: code, part, text: txt }); },
+    async pushResult(code, name, res) { await _post('/api/game/result',   { room: code, name, result: res }); },
+    async submitAnswer(code, name, a) { await _post('/api/game/submit',   { room: code, name, answer: a }); },
+    async nextQuestion(code)          { await _post('/api/game/next',     { room: code }); },
+    async endGame(code, scores)       { await _post('/api/game/over',     { room: code }); },
 
-    async pushQuestion(roomCode, question, timerEnd) {
-      await _post('/api/game/question', { room: roomCode, question, timerEnd });
-    },
-
-    async submitAnswer(roomCode, playerName, answer) {
-      await _post('/api/game/submit', { room: roomCode, name: playerName, answer });
-    },
-
-    async nextQuestion(roomCode) {
-      await _post('/api/game/next', { room: roomCode });
-    },
-
-    async endGame(roomCode) {
-      await _post('/api/game/over', { room: roomCode });
-    },
-
-    subscribeHost(roomCode, { onPlayerJoined, onPlayerSubmitted }) {
-      const sse = new EventSource(`/api/events?room=${encodeURIComponent(roomCode)}`);
-      sse.addEventListener('player_joined', (e) => {
-        const { name, joined } = JSON.parse(e.data);
-        onPlayerJoined && onPlayerJoined(name, joined);
-      });
-      sse.addEventListener('player_submitted', (e) => {
-        const d = JSON.parse(e.data);
-        onPlayerSubmitted && onPlayerSubmitted(d.name, d.totalSubmitted, d.totalJoined);
-      });
-      sse.onerror = () => console.warn('[GameDB] SSE error — will auto-reconnect');
+    subscribeHost(code, { onPlayerJoined, onPlayerSubmitted, onAnswersUpdated }) {
+      const sse = new EventSource(`/api/events?room=${encodeURIComponent(code)}`);
+      sse.addEventListener('player_joined',    e => { const { name, joined } = JSON.parse(e.data); onPlayerJoined?.(name, joined); });
+      sse.addEventListener('player_submitted', e => { const d = JSON.parse(e.data); onPlayerSubmitted?.(d.name, d.totalSubmitted, d.totalJoined); if (d.answers) onAnswersUpdated?.(d.answers); });
+      sse.onerror = () => console.warn('[GameDB] SSE error');
       return () => sse.close();
     },
 
-    subscribePlayer(roomCode, { onQuestionStart, onNextQuestion, onGameOver, onState }) {
-      const sse = new EventSource(`/api/events?room=${encodeURIComponent(roomCode)}`);
-      sse.addEventListener('question_start', (e) => {
-        const { question } = JSON.parse(e.data);
-        if (question) onQuestionStart && onQuestionStart(question);
-      });
-      sse.addEventListener('next_question', () => onNextQuestion && onNextQuestion());
-      sse.addEventListener('game_over', (e) => {
-        const { scores } = JSON.parse(e.data);
-        onGameOver && onGameOver(scores || {});
-      });
-      sse.addEventListener('state', (e) => onState && onState(JSON.parse(e.data)));
-      sse.onerror = () => console.warn('[GameDB] SSE error — will auto-reconnect');
+    subscribePlayer(code, opts) {
+      const { playerName, onQuestionStart, onNextQuestion, onGameOver, onState, onReveal, onResult } = opts;
+      const sse = new EventSource(`/api/events?room=${encodeURIComponent(code)}`);
+      sse.addEventListener('question_start', e => { const { question } = JSON.parse(e.data); if (question) onQuestionStart?.(question); });
+      sse.addEventListener('next_question',  () => onNextQuestion?.());
+      sse.addEventListener('game_over',      e => { const { scores } = JSON.parse(e.data); onGameOver?.(scores || {}); });
+      sse.addEventListener('state',          e => onState?.(JSON.parse(e.data)));
+      sse.addEventListener('reveal',         e => { const { reveals } = JSON.parse(e.data); onReveal?.(reveals); });
+      sse.addEventListener('result',         e => { const d = JSON.parse(e.data); if (d.name === playerName) onResult?.(d.result); });
+      sse.onerror = () => console.warn('[GameDB] SSE error');
       return () => sse.close();
     },
   };

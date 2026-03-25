@@ -42,9 +42,11 @@ let state = {
   playlistTotal: 15,       // total questions in playlist
 
   // ── Cross-device ──
-  playerUrl:       '',     // URL for player.html shown in QR code
-  sseUnsub:        null,   // unsubscribe fn for GameDB subscription
-  serverAvailable: false,  // true when server/Firebase is reachable
+  playerUrl:        '',    // URL for player.html shown in QR code
+  sseUnsub:         null,  // unsubscribe fn for GameDB subscription
+  serverAvailable:  false, // true when server/Firebase is reachable
+  awardedPlayers:   new Set(),   // players who received points this round
+  submittedAnswers: {},          // latest answers from GameDB subscription
 };
 
 /* ─── BROADCAST CHANNEL ───────────────────────────────────── */
@@ -135,12 +137,63 @@ function initPlayerSubscription() {
     onPlayerJoined: (name, joined) => {
       updateJoinStatus(joined);
       broadcast('PLAYER_JOINED', { name, joined });
+      updateLobbyCount(joined);
     },
     onPlayerSubmitted: (name, totalSubmitted, totalJoined) => {
       markSubmitted(name, totalSubmitted, totalJoined);
       broadcast('PLAYER_SUBMITTED', { name, totalSubmitted, totalJoined });
     },
+    onAnswersUpdated: (answers) => {
+      state.submittedAnswers = answers || {};
+      renderPlayerAnswers(answers);
+    },
   });
+}
+
+/* ─── LOBBY ────────────────────────────────────────────────── */
+function showLobbyOverlay() {
+  document.getElementById('hostLobbyOverlay')?.classList.remove('hidden');
+  updateLobbyCount(state.entities.reduce((acc, e) => { acc[e.name] = false; return acc; }, {}));
+}
+
+function updateLobbyCount(joined) {
+  const overlay = document.getElementById('hostLobbyOverlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  const count  = Object.keys(joined).length;
+  const total  = state.entities.length;
+  const countEl = document.getElementById('hostLobbyCount');
+  const listEl  = document.getElementById('hostLobbyPlayers');
+  if (countEl) countEl.textContent = `${count} / ${total} player${total !== 1 ? 's' : ''} joined`;
+  if (listEl) {
+    listEl.innerHTML = state.entities.map(e => {
+      const has = !!joined[e.name];
+      return `<span class="lobby-player-chip${has ? ' joined' : ''}">${e.name}${has ? ' ✓' : ''}</span>`;
+    }).join('');
+  }
+}
+
+function beginGame() {
+  document.getElementById('hostLobbyOverlay')?.classList.add('hidden');
+  GameDB.beginGame(state.roomCode);
+  broadcast('BEGIN_GAME', {});
+}
+
+/* ─── PLAYER ANSWERS DISPLAY ───────────────────────────────── */
+function renderPlayerAnswers(answers) {
+  const area = document.getElementById('hostAnswersArea');
+  const list = document.getElementById('hostAnswersList');
+  if (!area || !list) return;
+  if (!answers || Object.keys(answers).length === 0) {
+    area.classList.add('hidden');
+    return;
+  }
+  area.classList.remove('hidden');
+  list.innerHTML = Object.entries(answers).map(([name, ans]) => `
+    <div class="host-answer-row-item">
+      <strong>${name}</strong>
+      <span>${[ans.movie, ans.actor, ans.quote].filter(Boolean).join(' · ') || '(no answer)'}</span>
+    </div>
+  `).join('');
 }
 
 /* ─── PLAYER JOIN STATUS ──────────────────────────────────── */
@@ -365,6 +418,7 @@ function startGame() {
   const playerNames = state.entities.map(e => e.name);
   GameDB.createGame(state.roomCode, state.mode, playerNames);
   initPlayerSubscription();
+  showLobbyOverlay();
 
   renderScores();
   initCategoryTabs();
@@ -667,7 +721,15 @@ function renderAwardButtons(q) {
       btn.style.cssText = `background:${entity.color};color:#fff;opacity:.85`;
       btn.textContent = `+${pts} ${entity.name}`;
       btn.dataset.entityId = entity.id;
-      btn.addEventListener('click', () => { btn.disabled = true; btn.style.opacity='.4'; updateScore(entity.id, pts); });
+      btn.addEventListener('click', () => {
+        btn.disabled = true; btn.style.opacity = '.4';
+        updateScore(entity.id, pts);
+        // Mark player as correct for cross-device feedback
+        if (state.mode === 'individual') {
+          state.awardedPlayers.add(entity.name);
+          GameDB.pushResult(state.roomCode, entity.name, 'correct');
+        }
+      });
       btnGroup.appendChild(btn);
     });
     row.appendChild(partLabel);
@@ -712,6 +774,7 @@ function revealPart(part) {
   const row = $(`#awardRow-${part}`);
   if (row) row.classList.remove('hidden');
   broadcast(revealMsg(part), { text: revealText(part) });
+  GameDB.pushReveal(state.roomCode, part, revealText(part));
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -751,11 +814,24 @@ function updateTimerDisplay(val, el) {
    NEXT / END
    ══════════════════════════════════════════════════════════ */
 function nextQuestion() {
-  if (state.currentQ) state.usedIds.add(state.currentQ.id);
+  if (state.currentQ) {
+    state.usedIds.add(state.currentQ.id);
+    // Push 'wrong' to players who answered but weren't awarded
+    if (state.mode === 'individual') {
+      Object.keys(state.submittedAnswers || {}).forEach(name => {
+        if (!state.awardedPlayers.has(name)) {
+          GameDB.pushResult(state.roomCode, name, 'wrong');
+        }
+      });
+    }
+  }
+  state.awardedPlayers   = new Set();
+  state.submittedAnswers = {};
   stopTimer();
-  state.currentQ       = null;
-  state.revealedParts  = new Set();
+  state.currentQ        = null;
+  state.revealedParts   = new Set();
   state.showingSentToTv = false;
+  document.getElementById('hostAnswersArea')?.classList.add('hidden');
   $('#hostQEmpty').classList.remove('hidden');
   $('#hostQDisplay').classList.add('hidden');
   broadcast('NEXT_QUESTION', {});
@@ -808,6 +884,7 @@ function initControlButtons() {
   $('#stopTimerBtn').addEventListener('click', stopTimer);
   $('#nextQBtn').addEventListener('click', nextQuestion);
   $('#endGameBtn').addEventListener('click', endGame);
+  document.getElementById('beginGameBtn')?.addEventListener('click', beginGame);
 }
 
 /* ══════════════════════════════════════════════════════════

@@ -13,7 +13,9 @@
   <header class="player-header">
     <div class="player-header-logo">🎬 Movie Emoji</div>
     <div class="player-header-room">Room: <strong id="playerRoomCode">—</strong></div>
-    <a href="how-to-play.html" target="_blank" class="btn btn-ghost btn-sm" style="margin-left:auto">❓ Rules</a>
+    <div class="player-header-score hidden" id="playerScoreWrap">
+      Score: <strong id="playerScoreDisplay">0</strong>
+    </div>
   </header>
 
   <main class="player-main" id="playerMain">
@@ -23,17 +25,13 @@
       <div class="player-join-icon">🎬</div>
       <h1 class="player-join-title">Join the Game</h1>
       <p class="player-join-sub">Enter the room code from the TV, then pick your name.</p>
-
       <form class="player-join-form" id="joinForm" novalidate>
-
         <div>
           <label class="player-label" for="joinRoom">Room code</label>
           <input class="player-input" type="text" id="joinRoom"
                  placeholder="e.g. AB123" maxlength="5" autocomplete="off"
                  style="text-transform:uppercase;letter-spacing:.12em;font-family:monospace;font-size:1.15rem;text-align:center" />
         </div>
-
-        <!-- Name picker — revealed after room code loads -->
         <div class="hidden" id="namePickerSection">
           <label class="player-label" for="joinNameSelect">Pick your name</label>
           <select class="player-input" id="joinNameSelect">
@@ -41,9 +39,7 @@
           </select>
           <p id="namePickerMsg" style="font-size:.75rem;color:var(--clr-text-dim);margin-top:.35rem"></p>
         </div>
-
         <p id="roomStatusMsg" style="font-size:.8rem;min-height:1.2em;color:var(--clr-text-dim)"></p>
-
         <button type="submit" class="btn btn-primary player-submit-btn" id="joinBtn" disabled>
           Join Game 🎮
         </button>
@@ -53,43 +49,38 @@
     <!-- ─── WAITING SCREEN ─── -->
     <div class="player-waiting hidden" id="playerWaiting">
       <div class="player-waiting-icon">⏳</div>
-      <h2 style="font-size:1.25rem;font-weight:700;color:var(--clr-text)">Waiting for question…</h2>
-      <p>Watch the TV screen. The emoji will appear here when the host shows it!</p>
+      <h2 id="playerWaitingTitle" style="font-size:1.25rem;font-weight:700;color:var(--clr-text)">Waiting for question…</h2>
+      <p id="playerWaitingSub">Watch the TV screen. The emoji will appear here when the host shows it!</p>
       <p style="font-size:.8rem;margin-top:1rem">Playing as: <strong id="playerNameDisplay">—</strong></p>
     </div>
 
     <!-- ─── ANSWER SCREEN ─── -->
     <div class="player-answer-form hidden" id="playerAnswerForm">
-
       <div class="player-question-card">
+        <div class="player-timer hidden" id="playerTimer"></div>
         <div class="player-q-emoji" id="playerQEmoji">🎬</div>
         <div class="player-q-cat">
           <span class="cat-badge" id="playerQCatBadge">Easy</span>
         </div>
         <p class="player-q-inst" id="playerQInst">Guess the movie name!</p>
       </div>
-
       <form id="answerForm" novalidate>
         <div class="player-field">
           <label class="player-label" for="ansMovie">🎬 Movie Title</label>
           <input class="player-input" type="text" id="ansMovie" placeholder="Movie name…" autocomplete="off" />
         </div>
-
         <div class="player-field hidden" id="ansActorField">
           <label class="player-label" for="ansActor">🎭 Lead Actor / Actress</label>
           <input class="player-input" type="text" id="ansActor" placeholder="Actor name…" autocomplete="off" />
         </div>
-
         <div class="player-field hidden" id="ansQuoteField">
           <label class="player-label" for="ansQuote">💬 Famous Quote or Song</label>
           <input class="player-input" type="text" id="ansQuote" placeholder="Quote or song title…" autocomplete="off" />
         </div>
-
         <button type="submit" class="btn btn-primary player-submit-btn" id="ansSubmitBtn">
           Submit Answer ✓
         </button>
       </form>
-
     </div>
 
     <!-- ─── SUBMITTED SCREEN ─── -->
@@ -97,6 +88,24 @@
       <div class="player-submitted-icon">✅</div>
       <strong style="font-size:1rem;display:block;margin-bottom:.4rem">Answer submitted!</strong>
       <p class="player-submitted-text">Waiting for the host to reveal the correct answer…</p>
+    </div>
+
+    <!-- ─── REVEAL SCREEN ─── -->
+    <div class="player-reveal hidden" id="playerReveal">
+      <div class="player-result-banner hidden" id="playerResultBanner"></div>
+      <div class="player-reveal-card">
+        <p class="player-reveal-heading">🎬 Correct Answer</p>
+        <div class="player-reveal-items" id="playerRevealItems"></div>
+      </div>
+      <p class="player-reveal-waiting">Waiting for next question…</p>
+    </div>
+
+    <!-- ─── GAME OVER SCREEN ─── -->
+    <div class="player-gameover hidden" id="playerGameover">
+      <div class="player-gameover-icon">🏆</div>
+      <h2 style="font-size:1.4rem;font-weight:800;margin-bottom:.5rem">Game Over!</h2>
+      <p>Your final score: <strong id="playerFinalScore" style="color:var(--clr-secondary);font-size:1.2rem">—</strong></p>
+      <a href="player.html" class="btn btn-primary" style="margin-top:1.5rem">Scan QR to Play Again →</a>
     </div>
 
   </main>

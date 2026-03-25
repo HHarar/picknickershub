@@ -1,27 +1,25 @@
 /**
  * Movie Emoji Game — Player (Phone) Controller
- *
- * Transport: HTTP POST to server API + Server-Sent Events (SSE) for push.
- * Works cross-device on the same local network.
  */
 
-/* ─── STATE ───────────────────────────────────────────────── */
+/* ─── STATE ─────────────────────────────────────────────────── */
 let playerState = {
-  name:      '',
-  roomCode:  '',
-  currentQ:  null,
-  submitted: false,
-  unsub:     null,  // GameDB unsubscribe fn
+  name:         '',
+  roomCode:     '',
+  currentQ:     null,
+  submitted:    false,
+  score:        0,
+  unsub:        null,
+  timerHandle:  null,
 };
 
-/* ─── HELPERS ──────────────────────────────────────────────── */
+/* ─── HELPERS ───────────────────────────────────────────────── */
 function $(sel) { return document.querySelector(sel); }
 
 function setView(view) {
-  $('#playerJoin').classList.toggle('hidden',         view !== 'join');
-  $('#playerWaiting').classList.toggle('hidden',      view !== 'waiting');
-  $('#playerAnswerForm').classList.toggle('hidden',   view !== 'answering');
-  $('#playerSubmitted').classList.toggle('hidden',    view !== 'submitted');
+  const views = ['join','waiting','answering','submitted','revealed','gameover'];
+  const ids   = ['playerJoin','playerWaiting','playerAnswerForm','playerSubmitted','playerReveal','playerGameover'];
+  ids.forEach((id, i) => document.getElementById(id)?.classList.toggle('hidden', views[i] !== view));
 }
 
 function setRoomMsg(msg, type = '') {
@@ -33,10 +31,54 @@ function setRoomMsg(msg, type = '') {
                  : 'var(--clr-text-dim)';
 }
 
-/* ─── FETCH GAME NAMES ─────────────────────────────────────── */
+function updateScoreDisplay() {
+  const wrap = document.getElementById('playerScoreWrap');
+  const pts  = document.getElementById('playerScoreDisplay');
+  if (wrap) wrap.classList.remove('hidden');
+  if (pts)  pts.textContent = playerState.score;
+}
+
+/* ─── TIMER ─────────────────────────────────────────────────── */
+function startPlayerTimer(timerEnd) {
+  stopPlayerTimer();
+  if (!timerEnd) return;
+  const el = document.getElementById('playerTimer');
+  if (!el) return;
+  el.classList.remove('hidden');
+
+  function tick() {
+    const remaining = Math.ceil((timerEnd - Date.now()) / 1000);
+    if (remaining <= 0) {
+      el.textContent = "⏰ Time's up!";
+      el.className = 'player-timer urgent';
+      stopPlayerTimer();
+      // Disable submit if not yet submitted
+      const btn = $('#ansSubmitBtn');
+      if (btn && !playerState.submitted) {
+        btn.disabled = true;
+        btn.textContent = "⏰ Time's up!";
+      }
+      return;
+    }
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    el.textContent = m > 0 ? `⏱ ${m}:${s.toString().padStart(2,'0')}` : `⏱ ${s}s`;
+    el.className = `player-timer${remaining <= 10 ? ' urgent' : ''}`;
+    playerState.timerHandle = setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+function stopPlayerTimer() {
+  if (playerState.timerHandle) { clearTimeout(playerState.timerHandle); playerState.timerHandle = null; }
+  const el = document.getElementById('playerTimer');
+  if (el) { el.classList.add('hidden'); el.textContent = ''; }
+}
+
+/* ─── FETCH GAME NAMES ──────────────────────────────────────── */
 async function fetchGameNames(room) {
   setRoomMsg('Loading…');
-  const picker = $('#namePickerSection');
+  const picker  = $('#namePickerSection');
   const joinBtn = $('#joinBtn');
   picker?.classList.add('hidden');
   joinBtn.disabled = true;
@@ -45,65 +87,47 @@ async function fetchGameNames(room) {
   try {
     game = await GameDB.getState(room);
   } catch (e) {
-    if (e.code === 'NO_SERVER') {
-      setRoomMsg(
-        'Game server not reachable. Make sure you are on the same Wi-Fi as the host ' +
-        'and use the URL shown on the TV screen — not the Netlify site.',
-        'error'
-      );
-    } else {
-      setRoomMsg('Could not reach the game server.', 'error');
-    }
+    setRoomMsg(
+      e.code === 'NO_SERVER'
+        ? 'Game server not reachable. Use the URL shown on the TV screen.'
+        : 'Could not reach the game server.',
+      'error'
+    );
     return;
   }
-  if (!game) {
-    setRoomMsg('Room not found — double-check the code shown on the TV.', 'error');
-    return;
-  }
+  if (!game) { setRoomMsg('Room not found — double-check the code on the TV.', 'error'); return; }
 
   const select = $('#joinNameSelect');
-    select.innerHTML = '<option value="">— select your name —</option>';
-
-    const available = game.playerNames.filter(n => !game.joined[n]);
-    available.forEach(n => {
-      const opt = document.createElement('option');
-      opt.value = n;
-      opt.textContent = n;
-      select.appendChild(opt);
-    });
-
-    if (available.length === 0) {
-      setRoomMsg('All spots are taken!', 'error');
-      const msg = $('#namePickerMsg');
-      if (msg) msg.textContent = 'Ask the host to restart the game.';
-    } else {
-      setRoomMsg('');
-      const msg = $('#namePickerMsg');
-      if (msg) msg.textContent = `${available.length} spot${available.length > 1 ? 's' : ''} available`;
-    }
-
-    picker?.classList.remove('hidden');
-
-  // Enable join button when a name is selected
-  select.addEventListener('change', () => {
-    joinBtn.disabled = !select.value;
+  select.innerHTML = '<option value="">— select your name —</option>';
+  const available = game.playerNames.filter(n => !game.joined[n]);
+  available.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    select.appendChild(opt);
   });
+
+  if (available.length === 0) {
+    setRoomMsg('All spots are taken!', 'error');
+    const msg = $('#namePickerMsg');
+    if (msg) msg.textContent = 'Ask the host to restart the game.';
+  } else {
+    setRoomMsg('');
+    const msg = $('#namePickerMsg');
+    if (msg) msg.textContent = `${available.length} spot${available.length > 1 ? 's' : ''} available`;
+  }
+  picker?.classList.remove('hidden');
+  select.addEventListener('change', () => { joinBtn.disabled = !select.value; });
 }
 
-/* ─── JOIN FORM ────────────────────────────────────────────── */
+/* ─── JOIN FORM ─────────────────────────────────────────────── */
 function initJoinForm() {
   const roomInput = $('#joinRoom');
-
   roomInput.addEventListener('input', () => {
     const room = roomInput.value.toUpperCase();
     roomInput.value = room;
     $('#playerRoomCode').textContent = room || '—';
-    if (room.length === 5) {
-      fetchGameNames(room);
-    } else {
-      $('#namePickerSection')?.classList.add('hidden');
-      $('#joinBtn').disabled = true;
-    }
+    if (room.length === 5) fetchGameNames(room);
+    else { $('#namePickerSection')?.classList.add('hidden'); $('#joinBtn').disabled = true; }
   });
 
   $('#joinForm').addEventListener('submit', async (e) => {
@@ -113,20 +137,16 @@ function initJoinForm() {
     if (!room || !name) return;
 
     const btn = $('#joinBtn');
-    btn.disabled = true;
-    btn.textContent = 'Joining…';
+    btn.disabled = true; btn.textContent = 'Joining…';
 
     try {
       await GameDB.joinGame(room, name);
-
       playerState.name     = name;
       playerState.roomCode = room;
       $('#playerNameDisplay').textContent = name;
       $('#playerRoomCode').textContent    = room;
-
       connectSSE(room);
       setView('waiting');
-
     } catch (err) {
       if (err.status === 409) {
         setRoomMsg('That name was just taken — pick another.', 'error');
@@ -134,42 +154,77 @@ function initJoinForm() {
       } else {
         setRoomMsg('Could not join. Check your connection and try again.', 'error');
       }
-      btn.disabled = false;
-      btn.textContent = 'Join Game 🎮';
+      btn.disabled = false; btn.textContent = 'Join Game 🎮';
     }
   });
 }
 
-/* ─── SUBSCRIBE TO GAME ────────────────────────────────────── */
+/* ─── SUBSCRIBE TO GAME ─────────────────────────────────────── */
 function connectSSE(room) {
   if (playerState.unsub) playerState.unsub();
   playerState.unsub = GameDB.subscribePlayer(room, {
-    onQuestionStart: (question) => {
-      if (!playerState.submitted) showAnswerForm(question);
-    },
-    onNextQuestion: () => {
-      playerState.submitted = false;
-      setView('waiting');
-    },
-    onGameOver: (scores) => {
-      const myScore = scores?.[playerState.name] ?? '—';
-      $('#playerWaiting').innerHTML = `
-        <div style="font-size:3rem">🏆</div>
-        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:.5rem">Game Over!</h2>
-        <p>Your score: <strong style="color:var(--clr-secondary)">${myScore} pts</strong></p>
-        <a href="host.html" class="btn btn-primary" style="margin-top:1.25rem">Play Again</a>
-      `;
-      setView('waiting');
-    },
+    playerName: playerState.name,
+
     onState: (game) => {
       if (game.status === 'question' && game.currentQuestion && !playerState.submitted) {
+        startPlayerTimer(game.currentQuestion.timerEnd);
         showAnswerForm(game.currentQuestion);
+      } else if (game.status === 'over') {
+        showGameOver(game.scores || {});
+      } else {
+        setView('waiting');
       }
+      // Show any already-revealed answers
+      if (game.reveals && Object.keys(game.reveals).length > 0) {
+        populateRevealItems(game.reveals);
+      }
+    },
+
+    onQuestionStart: (question) => {
+      stopPlayerTimer();
+      playerState.submitted = false;
+      clearReveal();
+      startPlayerTimer(question.timerEnd);
+      showAnswerForm(question);
+    },
+
+    onNextQuestion: () => {
+      stopPlayerTimer();
+      playerState.submitted = false;
+      clearReveal();
+      setWaiting('Get ready for the next question…', 'Watch the TV screen for the emoji!');
+    },
+
+    onGameOver: (scores) => {
+      stopPlayerTimer();
+      showGameOver(scores);
+    },
+
+    onReveal: (reveals) => {
+      populateRevealItems(reveals);
+      // Only switch to reveal view if already submitted or timer ran out
+      if (playerState.submitted || ($('#ansSubmitBtn') && $('#ansSubmitBtn').disabled)) {
+        setView('revealed');
+      }
+    },
+
+    onResult: (result) => {
+      showResult(result);
+      setView('revealed');
     },
   });
 }
 
-/* ─── ANSWER FORM ──────────────────────────────────────────── */
+/* ─── WAITING SCREEN ────────────────────────────────────────── */
+function setWaiting(title, sub) {
+  const titleEl = document.getElementById('playerWaitingTitle');
+  const subEl   = document.getElementById('playerWaitingSub');
+  if (titleEl) titleEl.textContent = title || 'Waiting for question…';
+  if (subEl)   subEl.textContent   = sub   || 'Watch the TV screen.';
+  setView('waiting');
+}
+
+/* ─── ANSWER FORM ───────────────────────────────────────────── */
 function showAnswerForm(q) {
   playerState.currentQ  = q;
   playerState.submitted = false;
@@ -195,12 +250,13 @@ function showAnswerForm(q) {
   $('#ansMovie').value = '';
   $('#ansActor').value = '';
   $('#ansQuote').value = '';
-  $('#ansSubmitBtn').disabled = false;
+  $('#ansSubmitBtn').disabled  = false;
   $('#ansSubmitBtn').textContent = 'Submit Answer ✓';
 
   setView('answering');
 }
 
+/* ─── ANSWER SUBMIT ─────────────────────────────────────────── */
 function initAnswerForm() {
   $('#answerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -212,7 +268,7 @@ function initAnswerForm() {
       quote: $('#ansQuote').value.trim(),
     };
 
-    $('#ansSubmitBtn').disabled = true;
+    $('#ansSubmitBtn').disabled  = true;
     $('#ansSubmitBtn').textContent = 'Submitting…';
 
     try {
@@ -220,14 +276,60 @@ function initAnswerForm() {
       playerState.submitted = true;
       setView('submitted');
     } catch {
-      $('#ansSubmitBtn').disabled = false;
+      $('#ansSubmitBtn').disabled  = false;
       $('#ansSubmitBtn').textContent = 'Submit Answer ✓';
       alert('Could not submit — check your connection.');
     }
   });
 }
 
-/* ─── BOOT ─────────────────────────────────────────────────── */
+/* ─── REVEAL ────────────────────────────────────────────────── */
+function clearReveal() {
+  const items = document.getElementById('playerRevealItems');
+  if (items) items.innerHTML = '';
+  const banner = document.getElementById('playerResultBanner');
+  if (banner) { banner.innerHTML = ''; banner.classList.add('hidden'); }
+}
+
+function populateRevealItems(reveals) {
+  const container = document.getElementById('playerRevealItems');
+  if (!container) return;
+  container.innerHTML = '';
+  if (reveals.title) {
+    const d = document.createElement('div');
+    d.className = 'player-reveal-item'; d.textContent = `🎬 ${reveals.title}`; container.appendChild(d);
+  }
+  if (reveals.actor) {
+    const d = document.createElement('div');
+    d.className = 'player-reveal-item'; d.textContent = `🎭 ${reveals.actor}`; container.appendChild(d);
+  }
+  if (reveals.quote) {
+    const d = document.createElement('div');
+    d.className = 'player-reveal-item'; d.textContent = `💬 ${reveals.quote}`; container.appendChild(d);
+  }
+}
+
+function showResult(result) {
+  const banner = document.getElementById('playerResultBanner');
+  if (!banner) return;
+  if (result === 'correct') {
+    banner.innerHTML = '<div class="player-result-correct anim-pop-in">🎉 Correct! Points scored!</div>';
+    playerState.score += 0; // score comes from Firebase scores object; we just show feedback
+  } else {
+    banner.innerHTML = '<div class="player-result-wrong anim-pop-in">😢 Better luck next time!</div>';
+  }
+  banner.classList.remove('hidden');
+}
+
+/* ─── GAME OVER ─────────────────────────────────────────────── */
+function showGameOver(scores) {
+  const myScore = scores?.[playerState.name] ?? 0;
+  const finalEl = document.getElementById('playerFinalScore');
+  if (finalEl) finalEl.textContent = `${myScore} pts`;
+  setView('gameover');
+}
+
+/* ─── BOOT ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(location.search);
   const room   = (params.get('room') || '').toUpperCase();

@@ -118,6 +118,19 @@ function renderQrCode(url) {
   } catch (e) { console.warn('[TV] QR code failed:', e); }
 }
 
+/* ─── PLAYER TILES ─────────────────────────────────────────── */
+function renderPlayerTiles(entities, answeredNames) {
+  const container = $('#tvPlayerTiles');
+  if (!container) return;
+  container.innerHTML = entities.map(e => {
+    const answered = answeredNames?.has(e.name);
+    return `<div class="tv-player-tile${answered ? ' answered' : ''}" data-name="${e.name}">
+      <span class="tv-player-tile-name">${e.name}</span>
+      <span class="tv-player-tile-check">${answered ? '✓' : '…'}</span>
+    </div>`;
+  }).join('');
+}
+
 /* ─── ANSWER REVEAL ITEMS ──────────────────────────────────── */
 function appendAnswerItem(key, icon, label, text) {
   const container = $('#tvAnswerReveal');
@@ -163,9 +176,10 @@ const handlers = {
       urlEl.textContent = qrUrl.replace(/^https?:\/\//, '');
     }
 
-    // Reset player list
+    // Reset player list and answered set
     const list = $('#tvPlayerList');
     if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
+    tvState.answeredNames = new Set();
 
     renderScoreboard(entities);
     setView('lobby');
@@ -187,23 +201,16 @@ const handlers = {
   },
 
   PLAYER_SUBMITTED({ name }) {
-    const strip = $('#tvSubsStrip');
-    if (!strip) return;
-    if (strip.querySelector(`[data-name="${name}"]`)) return;
-    const b = document.createElement('span');
-    b.className   = 'tv-sub-bubble anim-pop-in';
-    b.dataset.name = name;
-    b.title       = name;
-    b.textContent = '✓';
-    strip.appendChild(b);
+    tvState.answeredNames = tvState.answeredNames || new Set();
+    tvState.answeredNames.add(name);
+    renderPlayerTiles(tvState.entities, tvState.answeredNames);
   },
 
   QUESTION_START({ difficulty, emojis, index, total }) {
     stopTvTimer();
 
-    // Reset submission strip and answer reveal
-    const strip = $('#tvSubsStrip');
-    if (strip) strip.innerHTML = '';
+    // Reset player tiles and answer reveal
+    renderPlayerTiles(tvState.entities, new Set());
     const reveal = $('#tvAnswerReveal');
     if (reveal) reveal.innerHTML = '';
 
@@ -271,13 +278,20 @@ const handlers = {
 
   NEXT_QUESTION() {
     stopTvTimer();
-    const strip = $('#tvSubsStrip');
-    if (strip) strip.innerHTML = '';
+    tvState.answeredNames = new Set();
+    const tiles = $('#tvPlayerTiles');
+    if (tiles) tiles.innerHTML = '';
     const reveal = $('#tvAnswerReveal');
     if (reveal) reveal.innerHTML = '';
     $('#tvCatBadge').style.display = '';
     setView('lobby');
     $('#tvLobbyStatus').textContent = 'Next question coming up…';
+  },
+
+  BEGIN_GAME() {
+    $('#tvLobbyStatus').textContent = '🎬 Game has started — first question coming up!';
+    const list = $('#tvPlayerList');
+    if (list) list.classList.add('hidden');
   },
 
   GAME_OVER({ entities, winner }) {
