@@ -49,6 +49,16 @@
 
   <!-- ─── GAME SCREEN ─── -->
   <div id="gameScreen" class="hidden">
+    <div id="tvLinkPanel" class="tv-link-panel hidden">
+      <div class="tv-link-inner">
+        <div class="tv-link-label">📺 Open this URL on your TV's browser (only needed once)</div>
+        <div class="tv-link-url" id="tvLinkUrl"></div>
+        <div class="tv-link-actions">
+          <button class="btn btn-sm btn-primary" id="copyTvLinkBtn">Copy Link</button>
+          <button class="btn btn-sm btn-ghost" id="closeTvLinkBtn">✕ Close</button>
+        </div>
+      </div>
+    </div>
 
     <header class="mlt-header" id="mltHeader">
       <div>🤔 Most Likely To</div>

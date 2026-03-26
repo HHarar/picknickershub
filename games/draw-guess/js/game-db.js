@@ -166,6 +166,15 @@ window.DgDB = (() => {
 
         return () => { r.child('ver').off(); r.child('strokes').off(); r.child('live').off(); };
       },
+
+      setHostRoom(hostId, roomCode) {
+        return _db.ref(`dg/hosts/${hostId}/room`).set(roomCode);
+      },
+      watchHostRoom(hostId, callback) {
+        const ref = _db.ref(`dg/hosts/${hostId}/room`);
+        ref.on('value', snap => callback(snap.val() || null));
+        return () => ref.off('value');
+      },
     };
   }
 
@@ -189,5 +198,7 @@ window.DgDB = (() => {
     subscribeHost() { return () => {}; },
     subscribePlayer() { return () => {}; },
     subscribeCanvas() { return () => {}; },
+    setHostRoom() { return Promise.resolve(); },
+    watchHostRoom() { return () => {}; },
   };
 })();

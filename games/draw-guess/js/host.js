@@ -24,12 +24,31 @@ let state = {
   unsub: null,
   tvConnected: false,
   playerUrl: '',
+  tvUrl: '',
   guessLog: [],
 };
 
 /* ─── HELPERS ─────────────────────────────────────────────── */
 function $(sel) { return document.querySelector(sel); }
 function $$(sel) { return document.querySelectorAll(sel); }
+
+function getHostId() {
+  let id = localStorage.getItem('dg_host_id');
+  if (!id) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    id = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    localStorage.setItem('dg_host_id', id);
+  }
+  return id;
+}
+
+function showTvLinkPanel(url) {
+  const panel = document.getElementById('tvLinkPanel');
+  const urlEl = document.getElementById('tvLinkUrl');
+  if (!panel || !urlEl) return;
+  urlEl.textContent = url;
+  panel.classList.toggle('hidden');
+}
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -179,6 +198,7 @@ async function startGame() {
   submitBtn.textContent = 'Creating game…';
 
   try {
+    const hostId = getHostId();
     const code = generateRoomCode();
     state.roomCode = code;
     state.teamA = { name: teamAName, players: teamAPlayers };
@@ -190,19 +210,34 @@ async function startGame() {
     state.guessLog = [];
 
     await DgDB.createGame(code, state.teamA, state.teamB, state.totalRounds);
+    await DgDB.setHostRoom(hostId, code);
 
     // Build player URL
     const playerUrl = `${location.origin}${location.pathname.replace('host.html', 'player.html')}?room=${code}`;
     state.playerUrl = playerUrl;
 
-    // Open TV
-    const tvUrl = `${location.pathname.replace('host.html', 'tv.html')}?room=${code}`;
-    window.open(tvUrl, '_blank');
+    // Build TV URL (stable host-based URL)
+    const tvUrl = `${location.pathname.replace('host.html', 'tv.html')}?host=${hostId}`;
+    state.tvUrl = tvUrl;
 
     // Switch to game screen
     document.body.className = 'dg-host-body';
     document.getElementById('setupScreen').classList.add('hidden');
     document.getElementById('gameScreen').classList.remove('hidden');
+
+    // Show TV link panel
+    showTvLinkPanel(tvUrl);
+
+    // Wire copy/close buttons
+    document.getElementById('copyTvLinkBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(state.tvUrl).then(() => {
+        document.getElementById('copyTvLinkBtn').textContent = 'Copied!';
+        setTimeout(() => { document.getElementById('copyTvLinkBtn').textContent = 'Copy Link'; }, 2000);
+      });
+    });
+    document.getElementById('closeTvLinkBtn').addEventListener('click', () => {
+      document.getElementById('tvLinkPanel').classList.add('hidden');
+    });
 
     // Update UI
     document.getElementById('roomCodeDisplay').textContent = code;
@@ -213,7 +248,7 @@ async function startGame() {
 
     // Wire header buttons
     document.getElementById('openTvBtn').addEventListener('click', () => {
-      window.open(tvUrl, '_blank');
+      showTvLinkPanel(state.tvUrl);
     });
     document.getElementById('showScoresBtn').addEventListener('click', () => {
       channel.postMessage({ type: 'SCORES_UPDATE', scores: state.scores, teamAName: state.teamA.name, teamBName: state.teamB.name });

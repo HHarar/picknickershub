@@ -22,6 +22,7 @@ let state = {
   timerEnd: null,
   votingOpen: false,
   playerUrl: '',
+  tvUrl: '',
 };
 
 /* ─── BROADCAST CHANNEL ───────────────────────────────────── */
@@ -48,6 +49,24 @@ function broadcast(type, payload = {}) {
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function getMltHostId() {
+  let id = localStorage.getItem('mlt_host_id');
+  if (!id) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    id = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    localStorage.setItem('mlt_host_id', id);
+  }
+  return id;
+}
+
+function showTvLinkPanel(url) {
+  const panel = document.getElementById('tvLinkPanel');
+  const urlEl = document.getElementById('tvLinkUrl');
+  if (!panel || !urlEl) return;
+  urlEl.textContent = url;
+  panel.classList.toggle('hidden');
 }
 
 function shuffle(arr) {
@@ -177,27 +196,44 @@ async function startGame() {
   const base = window.location.href.replace('host.html', 'player.html');
   state.playerUrl = `${base}?room=${state.roomCode}`;
 
+  const hostId = getMltHostId();
+
   try {
     await MltDB.createGame(state.roomCode, state.playerNames, state.questions.length);
+    await MltDB.setHostRoom(hostId, state.roomCode);
   } catch (err) {
     alert('Failed to create game: ' + err.message);
     return;
   }
+
+  // Build TV URL (stable host-based URL)
+  const tvUrl = `tv.html?host=${hostId}`;
+  state.tvUrl = tvUrl;
 
   // Show game screen
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('gameScreen').classList.remove('hidden');
   document.getElementById('roomCodeDisplay').textContent = state.roomCode;
 
+  // Show TV link panel
+  showTvLinkPanel(tvUrl);
+
+  // Wire copy/close buttons
+  document.getElementById('copyTvLinkBtn').addEventListener('click', () => {
+    navigator.clipboard.writeText(state.tvUrl).then(() => {
+      document.getElementById('copyTvLinkBtn').textContent = 'Copied!';
+      setTimeout(() => { document.getElementById('copyTvLinkBtn').textContent = 'Copy Link'; }, 2000);
+    });
+  });
+  document.getElementById('closeTvLinkBtn').addEventListener('click', () => {
+    document.getElementById('tvLinkPanel').classList.add('hidden');
+  });
+
   // Init subscription
   initHostSubscription();
 
   // Update scores panel
   renderScoresPanel();
-
-  // Open TV
-  const tvUrl = `tv.html?room=${state.roomCode}`;
-  window.open(tvUrl, '_blank');
 
   // Broadcast init
   broadcast('GAME_INIT', {
@@ -211,7 +247,7 @@ async function startGame() {
 
   // Wire buttons
   document.getElementById('openTvBtn').addEventListener('click', () => {
-    window.open(`tv.html?room=${state.roomCode}`, '_blank');
+    showTvLinkPanel(state.tvUrl);
   });
   document.getElementById('showScoresBtn').addEventListener('click', () => {
     broadcast('SCORES_UPDATE', { scores: state.scores });

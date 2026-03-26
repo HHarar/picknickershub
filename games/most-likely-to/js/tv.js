@@ -228,6 +228,38 @@ function initTvFirebase() {
   }
 }
 
+/* ─── INIT ROOM ───────────────────────────────────────────── */
+function initRoom(roomCode) {
+  if (!roomCode || roomCode === tvState.roomCode) return;
+  tvState.roomCode = roomCode;
+  document.getElementById('tvRoomCode').textContent = roomCode;
+
+  if (!tvState._tvDb) { setView('lobby'); return; }
+
+  tvState._tvDb.ref(`mlt/${roomCode}`).once('value').then(snap => {
+    if (!snap.exists()) { setView('lobby'); return; }
+    const g = snap.val();
+    tvState.playerNames = g.playerNames
+      ? (Array.isArray(g.playerNames) ? g.playerNames : Object.values(g.playerNames))
+      : [];
+
+    if (g.status === 'question' && g.currentQuestion) {
+      handleGameInit({ roomCode, playerNames: tvState.playerNames, playerUrl: '' });
+      handleQuestionStart(g.currentQuestion);
+    } else if (g.status === 'results' && g.lastResult) {
+      handleGameInit({ roomCode, playerNames: tvState.playerNames, playerUrl: '' });
+      handleVotingClosed({ result: g.lastResult });
+    } else if (g.status === 'over') {
+      const scores = g.scores || {};
+      const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+      const winners = sorted.length ? sorted.filter(([, v]) => v === sorted[0][1]).map(([k]) => k) : [];
+      handleGameOver({ scores, winner: winners });
+    } else {
+      handleGameInit({ roomCode, playerNames: tvState.playerNames, playerUrl: '' });
+    }
+  }).catch(() => setView('lobby'));
+}
+
 /* ─── INIT ────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   initTvFirebase();
@@ -236,11 +268,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Signal host that TV is ready
   channel.postMessage({ type: 'TV_READY', payload: {}, ts: Date.now() });
 
-  // Read room code from URL if present
+  // Read URL params
   const params = new URLSearchParams(window.location.search);
+  const hostId = params.get('host');
   const roomFromUrl = params.get('room');
-  if (roomFromUrl) {
-    document.getElementById('tvRoomCode').textContent = roomFromUrl;
-    tvState.roomCode = roomFromUrl;
+
+  if (hostId && tvState._tvDb) {
+    // Watch for host's current room — auto-updates when new game starts
+    tvState._tvDb.ref(`mlt/hosts/${hostId}/room`).on('value', snap => {
+      const newRoom = snap.val();
+      if (newRoom && newRoom !== tvState.roomCode) {
+        initRoom(newRoom);
+      }
+    });
+  } else if (roomFromUrl) {
+    initRoom(roomFromUrl);
   }
 });

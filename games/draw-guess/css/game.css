@@ -740,9 +740,27 @@ ul, ol { list-style: none; }
   display: none;
 }
 
+/* ── TV LINK PANEL ── */
+.tv-link-panel {
+  background: #f0f9ff; border: 1px solid #bae6fd; border-radius: var(--radius-md);
+  padding: .75rem 1rem; margin: .5rem 1.5rem;
+}
+.tv-link-inner { display: flex; flex-direction: column; gap: .5rem; }
+.tv-link-label { font-size: .8rem; font-weight: 700; color: #0369a1; }
+.tv-link-url { font-size: .75rem; color: #0c4a6e; word-break: break-all; background: #e0f2fe; padding: .4rem .6rem; border-radius: var(--radius-sm); }
+.tv-link-actions { display: flex; gap: .5rem; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 640px) {
   .host-game-grid { grid-template-columns: 1fr; }
   .setup-teams-grid { grid-template-columns: 1fr; }
   .setup-card { padding: 1.5rem 1.25rem; }
+  .dg-header { flex-wrap: wrap; gap: .5rem; padding: .6rem 1rem; }
+  .dg-header > div:first-child { font-size: .95rem; }
+  .tv-link-panel { margin: .5rem; }
+  .host-game-grid { padding: .75rem; gap: 1rem; }
+  .host-right { order: 1; }
+  .host-left  { order: 2; }
+  #roundWord { font-size: 1.4rem; }
+  .round-timer { font-size: 1.5rem; }
 }

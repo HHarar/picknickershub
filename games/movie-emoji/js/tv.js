@@ -364,6 +364,31 @@ setTimeout(() => {
   channel.postMessage({ type: 'TV_READY', payload: {}, ts: Date.now() });
 }, 300);
 
+// Watch for host's current room from URL param — auto-updates when new game starts
+(function() {
+  const params = new URLSearchParams(location.search);
+  const hostId = params.get('host');
+  const room   = params.get('room');
+  if (hostId && _tvFirebaseDB) {
+    _tvFirebaseDB.ref(`me/hosts/${hostId}/room`).on('value', snap => {
+      const newRoom = snap.val();
+      if (newRoom && newRoom !== tvState.roomCode) {
+        tvState.roomCode = newRoom;
+        // Re-initialise via GAME_INIT equivalent: subscribe new room scores
+        subscribeFirebaseScores(newRoom);
+        // Reset display for new game
+        $('#tvRoomCode').textContent = newRoom;
+        setView('lobby');
+        $('#tvLobbyStatus').textContent = 'New game started — waiting for host…';
+      }
+    });
+  } else if (room) {
+    tvState.roomCode = room;
+    $('#tvRoomCode').textContent = room;
+    subscribeFirebaseScores(room);
+  }
+})();
+
 /* ─── FULLSCREEN ON CLICK ──────────────────────────────────── */
 document.addEventListener('click', () => {
   if (!document.fullscreenElement) {

@@ -43,6 +43,7 @@ let state = {
 
   // ── Cross-device ──
   playerUrl:        '',    // URL for player.html shown in QR code
+  tvUrl:            '',    // Stable TV URL (host-based)
   sseUnsub:         null,  // unsubscribe fn for GameDB subscription
   serverAvailable:  false, // true when server/Firebase is reachable
   awardedPlayers:   new Set(),   // players who received points this round
@@ -76,6 +77,24 @@ function revealText(part) { return state.currentQ?.answer[part] || ''; }
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function getMeHostId() {
+  let id = localStorage.getItem('me_host_id');
+  if (!id) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    id = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    localStorage.setItem('me_host_id', id);
+  }
+  return id;
+}
+
+function showTvLinkPanel(url) {
+  const panel = document.getElementById('tvLinkPanel');
+  const urlEl = document.getElementById('tvLinkUrl');
+  if (!panel || !urlEl) return;
+  urlEl.textContent = url;
+  panel.classList.toggle('hidden');
 }
 
 function $(sel, root = document) { return root.querySelector(sel); }
@@ -404,6 +423,8 @@ function initSetup() {
    GAME START
    ══════════════════════════════════════════════════════════ */
 function startGame() {
+  const hostId = getMeHostId();
+
   $('#hostSetup').classList.add('hidden');
   $('#hostGame').classList.remove('hidden');
   $('#hostRoomCode').textContent = state.roomCode;
@@ -417,6 +438,7 @@ function startGame() {
   // Register game on server / Firebase (enables cross-device player join)
   const playerNames = state.entities.map(e => e.name);
   GameDB.createGame(state.roomCode, state.mode, playerNames);
+  GameDB.setHostRoom(hostId, state.roomCode);
   initPlayerSubscription();
   showLobbyOverlay();
 
@@ -428,14 +450,17 @@ function startGame() {
 
   if (state.timerDefault > 0) $('#timerBtn').classList.remove('hidden');
 
+  // Build stable TV URL and show link panel
+  const tvUrl = `tv.html?host=${hostId}`;
+  state.tvUrl = tvUrl;
+  showTvLinkPanel(tvUrl);
+
   broadcast('GAME_INIT', buildGameInitPayload());
 }
 
 /* ── Open TV window ── */
 function openTvWindow() {
-  const tv = window.open('tv.html', 'mego-tv', 'width=1280,height=720');
-  if (!tv) { alert('Pop-up blocked! Allow pop-ups for this page and try again.'); return; }
-  updateTVStatus(false);
+  showTvLinkPanel(state.tvUrl || `tv.html?host=${getMeHostId()}`);
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -889,6 +914,15 @@ function initControlButtons() {
   $('#nextQBtn').addEventListener('click', nextQuestion);
   $('#endGameBtn').addEventListener('click', endGame);
   document.getElementById('beginGameBtn')?.addEventListener('click', beginGame);
+  document.getElementById('copyTvLinkBtn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(state.tvUrl).then(() => {
+      document.getElementById('copyTvLinkBtn').textContent = 'Copied!';
+      setTimeout(() => { document.getElementById('copyTvLinkBtn').textContent = 'Copy Link'; }, 2000);
+    });
+  });
+  document.getElementById('closeTvLinkBtn')?.addEventListener('click', () => {
+    document.getElementById('tvLinkPanel').classList.add('hidden');
+  });
 }
 
 /* ══════════════════════════════════════════════════════════

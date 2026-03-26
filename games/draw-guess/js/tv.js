@@ -416,17 +416,63 @@ window.addEventListener('resize', () => {
   tvState.permanentCtx.drawImage(tempCanvas, 0, 0, perm.width, perm.height);
 });
 
+/* ─── INIT ROOM ───────────────────────────────────────────── */
+function initRoom(roomCode) {
+  if (!roomCode || roomCode === tvState.roomCode) return;
+
+  // Tear down old subscriptions
+  if (tvState.canvasUnsub) { tvState.canvasUnsub(); tvState.canvasUnsub = null; }
+  stopTvTimer();
+
+  tvState.roomCode = roomCode;
+  document.getElementById('tvRoomCode').textContent = roomCode;
+
+  if (!_tvDB) { setView('tvLobby'); return; }
+
+  _tvDB.ref(`dg/${roomCode}`).once('value').then(snap => {
+    if (!snap.exists()) { setView('tvLobby'); return; }
+    const g = snap.val();
+    tvState.teamAName = g.teamA?.name || 'Team A';
+    tvState.teamBName = g.teamB?.name || 'Team B';
+    tvState.scores = g.scores || { A: 0, B: 0 };
+    updateScores(tvState.scores);
+    document.getElementById('tvTeamAName').textContent = tvState.teamAName;
+    document.getElementById('tvTeamBName').textContent = tvState.teamBName;
+
+    if (g.status === 'drawing' && g.round) {
+      document.getElementById('tvProgress').textContent = `${g.round.num} / ${g.round.total}`;
+      const teamName = g.round.drawingTeam === 'A' ? tvState.teamAName : tvState.teamBName;
+      const teamClass = g.round.drawingTeam === 'A' ? 'team-a' : 'team-b';
+      const bannerEl = document.getElementById('tvDrawingTeamBanner');
+      bannerEl.className = `tv-team-banner ${teamClass}`;
+      bannerEl.innerHTML = `<span class="tv-drawer-badge">${teamName}</span> is drawing! — <span class="tv-drawer-name">${g.round.drawer}</span>`;
+      const hintEl = document.getElementById('tvWordHint');
+      hintEl.innerHTML = `<div class="tv-word-hint">${'_ '.repeat(g.round.word.length).trim()}</div>`;
+      const timerWrap = document.getElementById('tvTimerWrap');
+      timerWrap.innerHTML = buildTimerRing();
+      const remaining = Math.max(0, Math.ceil((g.round.timerEnd - Date.now()) / 1000));
+      updateTimerRing(remaining, g.round.duration);
+      if (remaining > 0) startTvTimer(g.round.timerEnd, g.round.duration);
+      setView('tvQuestion');
+      requestAnimationFrame(() => { initCanvases(); subscribeCanvas(roomCode); });
+    } else if (g.status === 'lobby' || g.status === 'active') {
+      setView('tvLobby');
+    } else if (g.status === 'over') {
+      setView('tvGameover');
+    } else {
+      setView('tvLobby');
+    }
+  }).catch(() => setView('tvLobby'));
+}
+
 /* ─── INIT ────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   initTvFirebase();
 
-  // Check URL for room code (in case of reload)
+  // Check URL params
   const params = new URLSearchParams(location.search);
+  const hostId = params.get('host');
   const room = params.get('room');
-  if (room) {
-    tvState.roomCode = room;
-    document.getElementById('tvRoomCode').textContent = room;
-  }
 
   setView('tvLobby');
 
@@ -438,38 +484,15 @@ document.addEventListener('DOMContentLoaded', () => {
     channel.postMessage({ type: 'TV_READY' });
   }, 500);
 
-  // If we have a room code and Firebase, try to restore state
-  if (room && _tvDB) {
-    _tvDB.ref(`dg/${room}`).once('value').then(snap => {
-      if (!snap.exists()) return;
-      const g = snap.val();
-      if (g.status === 'drawing' && g.round) {
-        tvState.teamAName = g.teamA?.name || 'Team A';
-        tvState.teamBName = g.teamB?.name || 'Team B';
-        tvState.scores = g.scores || { A: 0, B: 0 };
-        updateScores(tvState.scores);
-        // Show question view with existing canvas
-        document.getElementById('tvTeamAName').textContent = tvState.teamAName;
-        document.getElementById('tvTeamBName').textContent = tvState.teamBName;
-        document.getElementById('tvProgress').textContent = `${g.round.num} / ${g.round.total}`;
-        const teamName = g.round.drawingTeam === 'A' ? tvState.teamAName : tvState.teamBName;
-        const teamClass = g.round.drawingTeam === 'A' ? 'team-a' : 'team-b';
-        const bannerEl = document.getElementById('tvDrawingTeamBanner');
-        bannerEl.className = `tv-team-banner ${teamClass}`;
-        bannerEl.innerHTML = `<span class="tv-drawer-badge">${teamName}</span> is drawing! — <span class="tv-drawer-name">${g.round.drawer}</span>`;
-        const hintEl = document.getElementById('tvWordHint');
-        hintEl.innerHTML = `<div class="tv-word-hint">${'_ '.repeat(g.round.word.length).trim()}</div>`;
-        const timerWrap = document.getElementById('tvTimerWrap');
-        timerWrap.innerHTML = buildTimerRing();
-        const remaining = Math.max(0, Math.ceil((g.round.timerEnd - Date.now()) / 1000));
-        updateTimerRing(remaining, g.round.duration);
-        if (remaining > 0) startTvTimer(g.round.timerEnd, g.round.duration);
-        setView('tvQuestion');
-        requestAnimationFrame(() => {
-          initCanvases();
-          subscribeCanvas(room);
-        });
+  if (hostId && _tvDB) {
+    // Watch for host's current room — auto-updates when new game starts
+    _tvDB.ref(`dg/hosts/${hostId}/room`).on('value', snap => {
+      const newRoom = snap.val();
+      if (newRoom && newRoom !== tvState.roomCode) {
+        initRoom(newRoom);
       }
-    }).catch(e => console.warn('[TV] restore state error:', e));
+    });
+  } else if (room) {
+    initRoom(room);
   }
 });

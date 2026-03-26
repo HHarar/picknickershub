@@ -116,6 +116,15 @@ window.MltDB = (() => {
         return () => r.off('value', fn);
       },
 
+      setHostRoom(hostId, roomCode) {
+        return _db.ref(`mlt/hosts/${hostId}/room`).set(roomCode);
+      },
+      watchHostRoom(hostId, callback) {
+        const ref = _db.ref(`mlt/hosts/${hostId}/room`);
+        ref.on('value', snap => callback(snap.val() || null));
+        return () => ref.off('value');
+      },
+
       subscribePlayer(code, opts) {
         const { playerName, onState, onQuestionStart, onNextQuestion, onResult, onGameOver } = opts;
         let prevStatus = null, prevQText = null, prevResultId = null, isFirst = true;
@@ -176,5 +185,7 @@ window.MltDB = (() => {
     async endGame() {},
     subscribeHost() { return () => {}; },
     subscribePlayer() { return () => {}; },
+    setHostRoom() { return Promise.resolve(); },
+    watchHostRoom() { return () => {}; },
   };
 })();

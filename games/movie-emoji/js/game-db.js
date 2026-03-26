@@ -128,6 +128,15 @@ window.GameDB = (() => {
         return () => r.off('value', fn);
       },
 
+      setHostRoom(hostId, roomCode) {
+        return _db.ref(`me/hosts/${hostId}/room`).set(roomCode);
+      },
+      watchHostRoom(hostId, callback) {
+        const ref = _db.ref(`me/hosts/${hostId}/room`);
+        ref.on('value', snap => callback(snap.val() || null));
+        return () => ref.off('value');
+      },
+
       subscribePlayer(code, opts) {
         const { playerName, onQuestionStart, onNextQuestion, onGameOver,
                 onState, onReveal, onResult, onLobby } = opts;
@@ -212,6 +221,9 @@ window.GameDB = (() => {
       sse.onerror = () => console.warn('[GameDB] SSE error');
       return () => sse.close();
     },
+
+    setHostRoom() { return Promise.resolve(); },
+    watchHostRoom() { return () => {}; },
 
     subscribePlayer(code, opts) {
       const { playerName, onQuestionStart, onNextQuestion, onGameOver, onState, onReveal, onResult } = opts;

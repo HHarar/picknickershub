@@ -1479,3 +1479,22 @@ body {
   .tv-question-text { font-size: 1.3rem; }
   #tvRoomCode { font-size: 1.6rem; }
 }
+
+/* ── TV LINK PANEL ── */
+.tv-link-panel {
+  background: #f0f9ff; border: 1px solid #bae6fd; border-radius: var(--radius-md);
+  padding: .75rem 1rem; margin: .5rem 1.5rem;
+}
+.tv-link-inner { display: flex; flex-direction: column; gap: .5rem; }
+.tv-link-label { font-size: .8rem; font-weight: 700; color: #0369a1; }
+.tv-link-url { font-size: .75rem; color: #0c4a6e; word-break: break-all; background: #e0f2fe; padding: .4rem .6rem; border-radius: var(--radius-sm); }
+.tv-link-actions { display: flex; gap: .5rem; }
+
+/* ── MOBILE HOST HEADER ── */
+@media (max-width: 640px) {
+  .mlt-header { flex-wrap: wrap; gap: .5rem; padding: .6rem 1rem; }
+  .mlt-header > div:first-child { font-size: .95rem; }
+  .tv-link-panel { margin: .5rem; }
+  .host-right { order: 1; }
+  .host-left  { order: 2; }
+}
